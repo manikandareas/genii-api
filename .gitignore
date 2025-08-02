@@ -1,2 +1,9 @@
 # deps
 node_modules/
+
+.env
+.env.example
+
+bun.lockb
+bun.lock
+bun.lock.json

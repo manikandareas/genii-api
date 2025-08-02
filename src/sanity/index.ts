@@ -82,6 +82,11 @@ export async function saveChatMessage(
 	lessonId: string,
 	messages: UIMessage[],
 	assistantResponse: string,
+	metadata: {
+		model: string;
+		tokens: number;
+		processingTime: number;
+	},
 ): Promise<void> {
 	// Implementation untuk save ke Sanity
 	const lastUserMessage = messages[messages.length - 1];
@@ -118,10 +123,9 @@ export async function saveChatMessage(
 		timestamp: new Date().toISOString(),
 		status: "completed",
 		metadata: {
-			model: "gpt-4o-mini",
-			tokens: 0, // Calculate if needed
-			requestType: "chat",
-			processingTime: 0,
+			model: metadata.model,
+			tokens: metadata.tokens,
+			processingTime: metadata.processingTime,
 		},
 	});
 
@@ -138,10 +142,9 @@ export async function saveChatMessage(
 			timestamp: new Date().toISOString(),
 			status: "completed",
 			metadata: {
-				model: "gpt-4o-mini",
-				tokens: 0, // Calculate if needed
-				requestType: "chat",
-				processingTime: 0,
+				model: metadata.model,
+				tokens: metadata.tokens,
+				processingTime: metadata.processingTime,
 			},
 		});
 	}

@@ -143,13 +143,19 @@ app.post(
 		// 4. Build context prompt
 		const systemPrompt = buildSystemPrompt(user, lesson, searchResults);
 
+		const startProcessingTime = Date.now();
+
 		return streamText({
 			model: openai("gpt-4o-mini"),
 			system: systemPrompt,
 			messages: convertToModelMessages(messages),
 			onFinish: async (result) => {
 				// Save to Sanity
-				await saveChatMessage(user._id, lessonId, messages, result.text);
+				await saveChatMessage(user._id, lessonId, messages, result.text, {
+					model: result.response.modelId,
+					tokens: result.usage.totalTokens || 0,
+					processingTime: Date.now() - startProcessingTime,
+				});
 			},
 		}).toTextStreamResponse();
 	},
