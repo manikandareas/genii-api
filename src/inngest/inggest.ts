@@ -30,7 +30,6 @@ const recommendationFn = inngest.createFunction(
 		const reason = await step.run("generate-reason", async () => {
 			return await generateText({
 				model: availableModel.main,
-				temperature: 0.35,
 				maxOutputTokens: 220,
 				messages: [
 					{

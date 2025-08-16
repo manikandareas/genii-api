@@ -15,6 +15,7 @@ const app = new Hono();
 
 export const availableModel = {
 	main: openai("gpt-5-mini"),
+	chat: openai("gpt-5-chat-latest"),
 };
 
 app.on(
