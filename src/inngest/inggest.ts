@@ -28,9 +28,8 @@ const recommendationFn = inngest.createFunction(
 		});
 
 		const reason = await step.run("generate-reason", async () => {
-			return await generateText({
+			const { text } = await generateText({
 				model: availableModel.main,
-				maxOutputTokens: 220,
 				messages: [
 					{
 						role: "system",
@@ -55,12 +54,14 @@ const recommendationFn = inngest.createFunction(
 					},
 				],
 			});
+
+			return text;
 		});
 
 		await step.run("save-recommendations", async () => {
-			saveRecommendation({
+			await saveRecommendation({
 				query,
-				reason: reason.text,
+				reason: reason,
 				createdFor: userId,
 				courses: courses.map((course) => course.metadata?.id as string),
 			});
