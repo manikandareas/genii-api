@@ -5,7 +5,6 @@ import type { Lesson, User } from "../sanity.types";
 export type VectorMetadata = {
 	id: string;
 	type: "lesson" | "course";
-	content: string;
 	chunkIndex: number;
 };
 
@@ -17,23 +16,23 @@ export function buildSystemPrompt(
 	context: VectorSearchResult[],
 ): string {
 	const contextContent = context
-		.filter((result) => result.metadata?.content)
-		.map((result) => result.metadata?.content)
+		.filter((result) => result.data)
+		.map((result) => result.data)
 		.join("\n");
 
 	return `Kamu adalah tutor AI yang membantu menjelaskan materi pelajaran.
 
-User Profile:
-- Difficulty Level: ${user.level}
-- Delivery Preference: ${user.delivery_preference}
-- Learning Goals: ${user.learningGoals?.join(", ")}
+            User Profile:
+            - Difficulty Level: ${user.level}
+            - Delivery Preference: ${user.delivery_preference}
+            - Learning Goals: ${user.learningGoals?.join(", ")}
 
-Current Lesson: ${lesson.title}
+            Current Lesson: ${lesson.title}
 
-Relevant Context:
-${contextContent}
+            Relevant Context:
+            ${contextContent}
 
-Jelaskan dengan gaya ${user.delivery_preference} sesuai level ${user.level}.`;
+            Jelaskan dengan gaya ${user.delivery_preference} sesuai level ${user.level}.`;
 }
 
 export function splitContent(content: string, chunkSize = 500) {
