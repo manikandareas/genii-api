@@ -13,8 +13,8 @@ import { buildSystemPrompt, type VectorMetadata } from "./utils";
 
 const app = new Hono();
 
-const availableModel = {
-	main: openai("gpt-4.1-mini"),
+export const availableModel = {
+	main: openai("gpt-5-mini"),
 };
 
 app.on(
