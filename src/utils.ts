@@ -1,5 +1,5 @@
 import type { QueryResult } from "@upstash/vector";
-import type { Lesson, User } from "../sanity.types";
+import type { Lesson, User } from "../sanity.types.ts";
 
 // Vector search types
 export type VectorMetadata = {

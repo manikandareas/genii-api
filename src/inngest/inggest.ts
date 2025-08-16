@@ -19,7 +19,7 @@ const recommendationFn = inngest.createFunction(
 				includeMetadata: true,
 				includeVectors: false,
 				topK: 5,
-				filter: "type == 'course'",
+				filter: "type = 'course'",
 			});
 			return courses;
 		});
