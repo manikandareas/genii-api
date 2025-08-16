@@ -1,4 +1,5 @@
-FROM oven/bun:1.2-alpine  # atau :latest jika 1.2 tidak tersedia
+# Gunakan Bun 1.2 (atau latest)
+FROM oven/bun:1.2-alpine
 WORKDIR /app
 
 # Pastikan hanya prod deps
