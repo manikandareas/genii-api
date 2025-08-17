@@ -15,10 +15,16 @@ export const getCoursesByIds = async (ids: string[]) => {
 	}
 };
 
-export const saveRecommendation = async (
+export const upsertRecommendation = async (
 	recommendation: RecommendationInput,
 ) => {
 	try {
+		// Check if recommendation already exists for this user
+		const existingRecommendation = await sanityClient.fetch(
+			`*[_type == "recommendation" && createdFor._ref == $userId][0]`,
+			{ userId: recommendation.createdFor },
+		);
+
 		const doc = {
 			_type: "recommendation",
 			query: recommendation.query,
@@ -33,9 +39,13 @@ export const saveRecommendation = async (
 			})),
 		};
 
-		const result = await sanityClient.create(doc);
-
-		return result;
+		if (existingRecommendation) {
+			// Update existing recommendation
+			await sanityClient.patch(existingRecommendation._id).set(doc).commit();
+		} else {
+			// Create new recommendation
+			await sanityClient.create(doc);
+		}
 	} catch (error) {
 		throw new Error(
 			`Failed to save recommendations: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { Inngest } from "inngest";
 import { availableModel } from "..";
 import { vectorIndex } from "../lib/upstash";
-import { saveRecommendation } from "../sanity";
+import { upsertRecommendation } from "../sanity";
 import type { VectorMetadata } from "../utils";
 
 export const inngest = new Inngest({
@@ -33,19 +33,8 @@ const recommendationFn = inngest.createFunction(
 				messages: [
 					{
 						role: "system",
-						content: [
-							"TUGAS: Tulis SATU paragraf alasan yang merangkum mengapa kumpulan course di bawah relevan dengan query pengguna.",
-							"GAYA: hangat, suportif, percaya diri; singkat dan padat; fokus pada manfaat nyata.",
-							"PANJANG: 3–5 kalimat (≤ 90 kata).",
-							"TEKNIK:",
-							"• Sintesis pola bersama: topik/tags yang sama, level yang sesuai, tools/stack yang dicari, dan outcomes/praktik.",
-							"• Jelaskan alur/progresi (fundamental → intermediate → advanced) bila terlihat.",
-							"• Sebut 1–2 contoh spesifik (mis. kata kunci query, tool yang cocok, proyek akhir) untuk memperkuat alasan.",
-							"• Jangan mengada-ada; hanya gunakan info di course.data.",
-							"• Hindari menyebut daftar semua judul; cukup rujuk kategori/tema umumnya.",
-							"• Jika relevansi lemah, sampaikan secara jujur dan sarankan arah yang lebih tepat.",
-							"KELUARAN: hanya teks paragraf biasa (tanpa heading, tanpa bullet).",
-						].join("\\n"),
+						content:
+							"Tulis 2-3 paragraf friendly (maksimal 50 kata) menjelaskan mengapa course ini cocok untuk query pengguna. Gunakan tone ramah dan personal, fokus pada manfaat praktis yang akan didapat.",
 					},
 					{ role: "user", content: `Query pengguna: ${query}` },
 					{
@@ -59,7 +48,7 @@ const recommendationFn = inngest.createFunction(
 		});
 
 		await step.run("save-recommendations", async () => {
-			await saveRecommendation({
+			await upsertRecommendation({
 				query,
 				reason: reason,
 				createdFor: userId,
