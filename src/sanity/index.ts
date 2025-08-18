@@ -2,6 +2,31 @@ import type { UIMessage } from "ai";
 import { defineQuery } from "groq";
 import type { ChatSession } from "../../sanity.types";
 import { sanityClient } from "../lib/sanity";
+import { fromUIMessage } from "../utils";
+
+export const chatMessageQuery = defineQuery(`
+*[_type == "chatMessage" && _id == $messageId][0] {
+  _id,
+  _rev,
+  _type,
+  _createdAt,
+  _updatedAt,
+  messageId,
+  session->{
+    _id,
+    _type,
+    sessionId,
+    status,
+    createdAt,
+    lastActivity,
+    metadata
+  },
+  role,
+  metadata {
+    custom
+  },
+  parts[]
+}`);
 
 // Individual query exports for Sanity typegen
 export const getActiveSessionQuery = defineQuery(
@@ -135,55 +160,50 @@ export const getLesson = async (lessonId: string) => {
 // Helper function to create chat message
 const createChatMessage = async (
 	sessionId: string,
-	role: "user" | "assistant",
-	content: string,
-	metadata: {
-		model: string;
-		tokens: number;
-		processingTime: number;
+	messageId: string,
+	role: "user" | "assistant" | "system",
+	parts: any[],
+	metadata?: {
+		model?: string;
+		tokens?: number;
+		processingTime?: number;
+		[key: string]: any;
 	},
 ) => {
 	return await sanityClient.create({
 		_type: "chatMessage",
-		sessions: [
-			{ _ref: sessionId, _type: "reference", _key: crypto.randomUUID() },
-		],
+		messageId,
+		session: {
+			_ref: sessionId,
+			_type: "reference",
+		},
 		role,
-		content,
-		timestamp: new Date().toISOString(),
-		status: "completed",
-		metadata,
+		parts,
+		metadata: metadata ? { custom: JSON.stringify(metadata) } : undefined,
 	});
 };
 
 export async function saveChatMessage(
 	session: ChatSession,
-	messages: UIMessage[],
-	assistantResponse: string,
-	metadata: {
-		model: string;
-		tokens: number;
-		processingTime: number;
+	message: UIMessage,
+	metadata?: {
+		model?: string;
+		tokens?: number;
+		processingTime?: number;
+		[key: string]: any;
 	},
 ): Promise<void> {
-	const lastUserMessage = messages[messages.length - 1];
-
-	// Save assistant message
+	// Convert UIMessage to Sanity format using utility function
+	const sanityDoc = fromUIMessage(message, session._id);
+	
+	// Create the message with proper parts structure
 	await createChatMessage(
 		session._id,
-		"assistant",
-		assistantResponse,
+		message.id,
+		message.role,
+		sanityDoc.parts,
 		metadata,
 	);
-
-	// Save user message if exists
-	if (lastUserMessage?.role === "user") {
-		const userContent =
-			lastUserMessage.parts[0]?.type === "text"
-				? lastUserMessage.parts[0].text
-				: "";
-		await createChatMessage(session._id, "user", userContent, metadata);
-	}
 }
 
 export const getOrCreateChatSession = async (

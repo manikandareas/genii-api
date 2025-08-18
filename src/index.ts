@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import { zValidator } from "@hono/zod-validator";
-import { convertToModelMessages, streamText } from "ai";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "inngest/hono";
@@ -21,7 +21,7 @@ const app = new Hono();
 
 export const availableModel = {
 	main: openai("gpt-5-mini"),
-	chat: openai("gpt-5-mini"),
+	chat: openai("gpt-4.1-mini"),
 };
 
 app.on(
@@ -108,14 +108,18 @@ app.post(
 	async (c) => {
 		const { lessonId, messages } = c.req.valid("json");
 
+		console.log("=====Request in+++++");
 		try {
 			const auth = getAuth(c);
 
+			console.log("Auth-1:", auth);
 			if (!auth?.userId) {
 				return c.json({
 					message: "You are not logged in.",
 				});
 			}
+
+			console.log("Auth:", auth);
 
 			const [user, lesson] = await Promise.all([
 				getUserByClerkId(auth.userId),
@@ -162,13 +166,36 @@ app.post(
 			// Create or get session first
 			const session = await getOrCreateChatSession(user._id, lessonId);
 
+			// Save user message before processing
+			const userMessage = messages[messages.length - 1];
+			if (userMessage && userMessage.role === "user") {
+				await saveChatMessage(session as ChatSession, userMessage);
+			}
+
 			return streamText({
-				model: availableModel.main,
+				model: availableModel.chat,
 				system: systemPrompt,
 				messages: convertToModelMessages(messages),
 				onFinish: async (result) => {
-					// Save to Sanity
-					await saveChatMessage(session as ChatSession, messages, result.text, {
+					// Create assistant message and save to Sanity
+					const assistantMessage: UIMessage = {
+						id: crypto.randomUUID(),
+						role: "assistant",
+						parts: [
+							{
+								type: "text",
+								text: result.text,
+								state: "done",
+							},
+						],
+						metadata: {
+							model: result.response.modelId,
+							tokens: result.usage.totalTokens || 0,
+							processingTime: Date.now() - startProcessingTime,
+						},
+					};
+					
+					await saveChatMessage(session as ChatSession, assistantMessage, {
 						model: result.response.modelId,
 						tokens: result.usage.totalTokens || 0,
 						processingTime: Date.now() - startProcessingTime,

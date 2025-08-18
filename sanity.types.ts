@@ -19,23 +19,89 @@ export type ChatMessage = {
   _createdAt: string;
   _updatedAt: string;
   _rev: string;
-  sessions?: Array<{
+  messageId?: string;
+  session?: {
     _ref: string;
     _type: "reference";
     _weak?: boolean;
-    _key: string;
     [internalGroqTypeReferenceTo]?: "chatSession";
-  }>;
-  role?: "user" | "assistant";
-  content?: string;
-  timestamp?: string;
-  status?: "streaming" | "completed" | "error";
-  metadata?: {
-    model?: string;
-    tokens?: number;
-    requestType?: string;
-    processingTime?: number;
   };
+  role?: "system" | "user" | "assistant";
+  metadata?: {
+    custom?: string;
+  };
+  parts?: Array<{
+    type?: string;
+    text?: string;
+    state?: "streaming" | "done";
+    _type: "textUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    text?: string;
+    state?: "streaming" | "done";
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "reasoningUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    name?: string;
+    toolCallId?: string;
+    state?: "input-streaming" | "input-available" | "output-available" | "output-error";
+    input?: {
+      data?: string;
+    };
+    output?: {
+      data?: string;
+    };
+    errorText?: string;
+    providerExecuted?: boolean;
+    _type: "toolUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    sourceId?: string;
+    url?: string;
+    title?: string;
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "sourceUrlUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    sourceId?: string;
+    mediaType?: string;
+    title?: string;
+    filename?: string;
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "sourceDocumentUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    mediaType?: string;
+    filename?: string;
+    url?: string;
+    _type: "fileUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    name?: string;
+    dataId?: string;
+    data?: {
+      content?: string;
+    };
+    _type: "dataUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    _type: "stepStartUIPart";
+    _key: string;
+  }>;
 };
 
 export type ChatSession = {
@@ -422,6 +488,105 @@ export type SanityAssetSourceData = {
 export type AllSanitySchemaTypes = ChatMessage | ChatSession | Recommendation | Enrollment | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: ./src/sanity/index.ts
+// Variable: chatMessageQuery
+// Query: *[_type == "chatMessage" && _id == $messageId][0] {  _id,  _rev,  _type,  _createdAt,  _updatedAt,  messageId,  session->{    _id,    _type,    sessionId,    status,    createdAt,    lastActivity,    metadata  },  role,  metadata {    custom  },  parts[]}
+export type ChatMessageQueryResult = {
+  _id: string;
+  _rev: string;
+  _type: "chatMessage";
+  _createdAt: string;
+  _updatedAt: string;
+  messageId: string | null;
+  session: {
+    _id: string;
+    _type: "chatSession";
+    sessionId: string | null;
+    status: "active" | "ended" | "inactive" | null;
+    createdAt: string | null;
+    lastActivity: string | null;
+    metadata: {
+      userLevel?: string;
+      lessonTitle?: string;
+      totalMessages?: number;
+    } | null;
+  } | null;
+  role: "assistant" | "system" | "user" | null;
+  metadata: {
+    custom: string | null;
+  } | null;
+  parts: Array<{
+    type?: string;
+    name?: string;
+    dataId?: string;
+    data?: {
+      content?: string;
+    };
+    _type: "dataUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    mediaType?: string;
+    filename?: string;
+    url?: string;
+    _type: "fileUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    text?: string;
+    state?: "done" | "streaming";
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "reasoningUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    sourceId?: string;
+    mediaType?: string;
+    title?: string;
+    filename?: string;
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "sourceDocumentUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    sourceId?: string;
+    url?: string;
+    title?: string;
+    providerMetadata?: {
+      data?: string;
+    };
+    _type: "sourceUrlUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    _type: "stepStartUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    text?: string;
+    state?: "done" | "streaming";
+    _type: "textUIPart";
+    _key: string;
+  } | {
+    type?: string;
+    name?: string;
+    toolCallId?: string;
+    state?: "input-available" | "input-streaming" | "output-available" | "output-error";
+    input?: {
+      data?: string;
+    };
+    output?: {
+      data?: string;
+    };
+    errorText?: string;
+    providerExecuted?: boolean;
+    _type: "toolUIPart";
+    _key: string;
+  }> | null;
+} | null;
 // Variable: getActiveSessionQuery
 // Query: *[_type == "chatSession" && 		  references($userId) && 		  references($lessonId) && 		  status == "active"][0]
 export type GetActiveSessionQueryResult = {
@@ -595,16 +760,17 @@ export type GetExistingRecommendationQueryResult = {
 // Query: *[_type == "chatMessage" && 	  references(*[_type == "chatSession" && 	    references($userId) && 	    references($lessonId) && 	    status == "active"]._id)	] | order(timestamp asc) {	  _id,	  role,	  content,	  timestamp,	  status	}
 export type GetChatHistoryQueryResult = Array<{
   _id: string;
-  role: "assistant" | "user" | null;
-  content: string | null;
-  timestamp: string | null;
-  status: "completed" | "error" | "streaming" | null;
+  role: "assistant" | "system" | "user" | null;
+  content: null;
+  timestamp: null;
+  status: null;
 }>;
 
 // Query TypeMap
 import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
+    "\n*[_type == \"chatMessage\" && _id == $messageId][0] {\n  _id,\n  _rev,\n  _type,\n  _createdAt,\n  _updatedAt,\n  messageId,\n  session->{\n    _id,\n    _type,\n    sessionId,\n    status,\n    createdAt,\n    lastActivity,\n    metadata\n  },\n  role,\n  metadata {\n    custom\n  },\n  parts[]\n}": ChatMessageQueryResult;
     "*[_type == \"chatSession\" && \n\t\t  references($userId) && \n\t\t  references($lessonId) && \n\t\t  status == \"active\"][0]": GetActiveSessionQueryResult;
     "*[_type == \"user\" && _id == $userId][0]": GetUserByIdQueryResult;
     "*[_type == \"user\" && clerkId == $clerkId][0]": GetUserByClerkIdQueryResult;
