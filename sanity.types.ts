@@ -422,6 +422,111 @@ export type SanityAssetSourceData = {
 export type AllSanitySchemaTypes = ChatMessage | ChatSession | Recommendation | Enrollment | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: ./src/sanity/index.ts
+// Variable: getActiveSessionQuery
+// Query: *[_type == "chatSession" && 		  references($userId) && 		  references($lessonId) && 		  status == "active"][0]
+export type GetActiveSessionQueryResult = {
+  _id: string;
+  _type: "chatSession";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  users?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "user";
+  }>;
+  lessons?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "lesson";
+  }>;
+  sessionId?: string;
+  createdAt?: string;
+  lastActivity?: string;
+  status?: "active" | "ended" | "inactive";
+  metadata?: {
+    userLevel?: string;
+    lessonTitle?: string;
+    totalMessages?: number;
+  };
+} | null;
+// Variable: getUserByIdQuery
+// Query: *[_type == "user" && _id == $userId][0]
+export type GetUserByIdQueryResult = {
+  _id: string;
+  _type: "user";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  username?: string;
+  firstname?: string;
+  lastname?: string;
+  email?: string;
+  clerkId?: string;
+  onboardingStatus?: "completed" | "not_started";
+  learningGoals?: Array<string>;
+  studyReason?: string;
+  studyPlan?: string;
+  level?: "advanced" | "beginner" | "intermediate";
+  studyStreak?: number;
+  streakStartDate?: number;
+  delivery_preference?: string;
+} | null;
+// Variable: getUserByClerkIdQuery
+// Query: *[_type == "user" && clerkId == $clerkId][0]
+export type GetUserByClerkIdQueryResult = {
+  _id: string;
+  _type: "user";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  username?: string;
+  firstname?: string;
+  lastname?: string;
+  email?: string;
+  clerkId?: string;
+  onboardingStatus?: "completed" | "not_started";
+  learningGoals?: Array<string>;
+  studyReason?: string;
+  studyPlan?: string;
+  level?: "advanced" | "beginner" | "intermediate";
+  studyStreak?: number;
+  streakStartDate?: number;
+  delivery_preference?: string;
+} | null;
+// Variable: getLessonByIdQuery
+// Query: *[_type == "lesson" && _id == $lessonId][0]
+export type GetLessonByIdQueryResult = {
+  _id: string;
+  _type: "lesson";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  title?: string;
+  slug?: Slug;
+  chapter?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "chapter";
+  }>;
+  content?: string;
+} | null;
+// Variable: getUserLevelQuery
+// Query: *[_type == "user" && _id == $userId][0]{level}
+export type GetUserLevelQueryResult = {
+  level: "advanced" | "beginner" | "intermediate" | null;
+} | null;
+// Variable: getLessonTitleQuery
+// Query: *[_type == "lesson" && _id == $lessonId][0]{title}
+export type GetLessonTitleQueryResult = {
+  title: string | null;
+} | null;
 // Variable: getCoursesByIdsQuery
 // Query: *[_type == "course" && _id in $ids]
 export type GetCoursesByIdsQueryResult = Array<{
@@ -462,54 +567,42 @@ export type GetCoursesByIdsQueryResult = Array<{
     [internalGroqTypeReferenceTo]?: "chapter";
   }>;
 }>;
-// Variable: getUserByClerkIdQuery
-// Query: *[_type == "user" && clerkId == $clerkId][0]
-export type GetUserByClerkIdQueryResult = {
+// Variable: getExistingRecommendationQuery
+// Query: *[_type == "recommendation" && createdFor._ref == $userId][0]
+export type GetExistingRecommendationQueryResult = {
   _id: string;
-  _type: "user";
+  _type: "recommendation";
   _createdAt: string;
   _updatedAt: string;
   _rev: string;
-  username?: string;
-  firstname?: string;
-  lastname?: string;
-  email?: string;
-  clerkId?: string;
-  onboardingStatus?: "completed" | "not_started";
-  learningGoals?: Array<string>;
-  studyReason?: string;
-  studyPlan?: string;
-  level?: "advanced" | "beginner" | "intermediate";
-  studyStreak?: number;
-  streakStartDate?: number;
-  delivery_preference?: string;
-} | null;
-// Variable: getLessonQuery
-// Query: *[_type == "lesson" && _id == $lessonId][0]
-export type GetLessonQueryResult = {
-  _id: string;
-  _type: "lesson";
-  _createdAt: string;
-  _updatedAt: string;
-  _rev: string;
-  title?: string;
-  slug?: Slug;
-  chapter?: Array<{
+  query?: string;
+  reason?: string;
+  createdFor?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  courses?: Array<{
     _ref: string;
     _type: "reference";
     _weak?: boolean;
     _key: string;
-    [internalGroqTypeReferenceTo]?: "chapter";
+    [internalGroqTypeReferenceTo]?: "course";
   }>;
-  content?: string;
 } | null;
 
 // Query TypeMap
 import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
-    "*[_type == \"course\" && _id in $ids]": GetCoursesByIdsQueryResult;
+    "*[_type == \"chatSession\" && \n\t\t  references($userId) && \n\t\t  references($lessonId) && \n\t\t  status == \"active\"][0]": GetActiveSessionQueryResult;
+    "*[_type == \"user\" && _id == $userId][0]": GetUserByIdQueryResult;
     "*[_type == \"user\" && clerkId == $clerkId][0]": GetUserByClerkIdQueryResult;
-    "*[_type == \"lesson\" && _id == $lessonId][0]": GetLessonQueryResult;
+    "*[_type == \"lesson\" && _id == $lessonId][0]": GetLessonByIdQueryResult;
+    "*[_type == \"user\" && _id == $userId][0]{level}": GetUserLevelQueryResult;
+    "*[_type == \"lesson\" && _id == $lessonId][0]{title}": GetLessonTitleQueryResult;
+    "*[_type == \"course\" && _id in $ids]": GetCoursesByIdsQueryResult;
+    "*[_type == \"recommendation\" && createdFor._ref == $userId][0]": GetExistingRecommendationQueryResult;
   }
 }

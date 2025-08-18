@@ -8,7 +8,12 @@ import { serve } from "inngest/hono";
 import { z } from "zod";
 import { functions, inngest } from "./inngest/inggest";
 import { vectorIndex } from "./lib/upstash";
-import { getLesson, getUserByClerkId, saveChatMessage } from "./sanity";
+import {
+	getLesson,
+	getOrCreateChatSession,
+	getUserByClerkId,
+	saveChatMessage,
+} from "./sanity";
 import { buildSystemPrompt, type VectorMetadata } from "./utils";
 
 const app = new Hono();
@@ -111,7 +116,10 @@ app.post(
 				});
 			}
 
-			const user = await getUserByClerkId(auth.userId);
+			const [user, lesson] = await Promise.all([
+				getUserByClerkId(auth.userId),
+				getLesson(lessonId),
+			]);
 
 			if (!user) {
 				return c.json({
@@ -119,14 +127,11 @@ app.post(
 				});
 			}
 
-			const lesson = await getLesson(lessonId);
-
 			if (!lesson) {
 				return c.json({
 					message: "Lesson not found.",
 				});
 			}
-
 			console.log("Messages:", messages);
 
 			const lastMessage = messages[messages.length - 1]?.parts[0].text;

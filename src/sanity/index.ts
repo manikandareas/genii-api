@@ -2,10 +2,43 @@ import type { UIMessage } from "ai";
 import { defineQuery } from "groq";
 import { sanityClient } from "../lib/sanity";
 
+// Individual query exports for Sanity typegen
+export const getActiveSessionQuery = defineQuery(
+	`*[_type == "chatSession" && 
+		  references($userId) && 
+		  references($lessonId) && 
+		  status == "active"][0]`,
+);
+
+export const getUserByIdQuery = defineQuery(
+	`*[_type == "user" && _id == $userId][0]`
+);
+
+export const getUserByClerkIdQuery = defineQuery(
+	`*[_type == "user" && clerkId == $clerkId][0]`
+);
+
+export const getLessonByIdQuery = defineQuery(
+	`*[_type == "lesson" && _id == $lessonId][0]`
+);
+
+export const getUserLevelQuery = defineQuery(
+	`*[_type == "user" && _id == $userId][0]{level}`
+);
+
+export const getLessonTitleQuery = defineQuery(
+	`*[_type == "lesson" && _id == $lessonId][0]{title}`
+);
+
+export const getCoursesByIdsQuery = defineQuery(
+	`*[_type == "course" && _id in $ids]`
+);
+
+export const getExistingRecommendationQuery = defineQuery(
+	`*[_type == "recommendation" && createdFor._ref == $userId][0]`
+);
+
 export const getCoursesByIds = async (ids: string[]) => {
-	const getCoursesByIdsQuery = defineQuery(
-		`*[_type == "course" && _id in $ids]`,
-	);
 	try {
 		return await sanityClient.fetch(getCoursesByIdsQuery, { ids });
 	} catch (error) {
@@ -21,7 +54,7 @@ export const upsertRecommendation = async (
 	try {
 		// Check if recommendation already exists for this user
 		const existingRecommendation = await sanityClient.fetch(
-			`*[_type == "recommendation" && createdFor._ref == $userId][0]`,
+			getExistingRecommendationQuery,
 			{ userId: recommendation.createdFor },
 		);
 
@@ -62,9 +95,6 @@ interface RecommendationInput {
 }
 
 export const getUserByClerkId = async (clerkId: string) => {
-	const getUserByClerkIdQuery = defineQuery(
-		`*[_type == "user" && clerkId == $clerkId][0]`,
-	);
 	try {
 		return await sanityClient.fetch(getUserByClerkIdQuery, { clerkId });
 	} catch (error) {
@@ -75,16 +105,35 @@ export const getUserByClerkId = async (clerkId: string) => {
 };
 
 export const getLesson = async (lessonId: string) => {
-	const getLessonQuery = defineQuery(
-		`*[_type == "lesson" && _id == $lessonId][0]`,
-	);
 	try {
-		return await sanityClient.fetch(getLessonQuery, { lessonId });
+		return await sanityClient.fetch(getLessonByIdQuery, { lessonId });
 	} catch (error) {
 		throw new Error(
 			`Failed to fetch lesson by ID: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
+};
+
+// Helper function to create chat message
+const createChatMessage = async (
+	sessionId: string,
+	role: "user" | "assistant",
+	content: string,
+	metadata: {
+		model: string;
+		tokens: number;
+		processingTime: number;
+	},
+) => {
+	return await sanityClient.create({
+		_type: "chatMessage",
+		sessions: [{ _ref: sessionId, _type: "reference" }],
+		role,
+		content,
+		timestamp: new Date().toISOString(),
+		status: "completed",
+		metadata,
+	});
 };
 
 export async function saveChatMessage(
@@ -98,64 +147,67 @@ export async function saveChatMessage(
 		processingTime: number;
 	},
 ): Promise<void> {
-	// Implementation untuk save ke Sanity
 	const lastUserMessage = messages[messages.length - 1];
 
-	// Create or get session - Fixed query to match schema
-	let session = await sanityClient.fetch(
-		`*[_type == "chatSession" && $userId in users[]._ref && $lessonId in lessons[]._ref && status == "active"][0]`,
-		{ userId, lessonId },
+	// Use the existing getOrCreateChatSession function
+	const session = await getOrCreateChatSession(userId, lessonId);
+
+	// Save assistant message
+	await createChatMessage(
+		session._id,
+		"assistant",
+		assistantResponse,
+		metadata,
 	);
 
-	if (!session) {
-		session = await sanityClient.create({
-			_type: "chatSession",
-			users: [{ _ref: userId }], // Array of references
-			lessons: [{ _ref: lessonId }], // Array of references
-			sessionId: `${userId}-${lessonId}-${Date.now()}`,
-			createdAt: new Date().toISOString(),
-			lastActivity: new Date().toISOString(),
-			status: "active", // Required field with specific values
-			metadata: {
-				userLevel: "intermediate", // Get from user
-				lessonTitle: "Current Lesson", // Get from lesson
-				totalMessages: 0,
-			},
-		});
-	}
-
-	// Save assistant message - Fixed to use sessions array
-	await sanityClient.create({
-		_type: "chatMessage",
-		sessions: [{ _ref: session._id }], // Array of references
-		role: "assistant",
-		content: assistantResponse,
-		timestamp: new Date().toISOString(),
-		status: "completed",
-		metadata: {
-			model: metadata.model,
-			tokens: metadata.tokens,
-			processingTime: metadata.processingTime,
-		},
-	});
-
-	// Save user message - Fixed to use sessions array
-	if (lastUserMessage.role === "user") {
-		await sanityClient.create({
-			_type: "chatMessage",
-			sessions: [{ _ref: session._id }], // Array of references
-			role: "user",
-			content:
-				lastUserMessage.parts[0].type === "text"
-					? lastUserMessage.parts[0].text
-					: "",
-			timestamp: new Date().toISOString(),
-			status: "completed",
-			metadata: {
-				model: metadata.model,
-				tokens: metadata.tokens,
-				processingTime: metadata.processingTime,
-			},
-		});
+	// Save user message if exists
+	if (lastUserMessage?.role === "user") {
+		const userContent =
+			lastUserMessage.parts[0]?.type === "text"
+				? lastUserMessage.parts[0].text
+				: "";
+		await createChatMessage(session._id, "user", userContent, metadata);
 	}
 }
+
+export const getOrCreateChatSession = async (
+	userId: string,
+	lessonId: string,
+) => {
+	// First, check if an active session exists
+	const session = await sanityClient.fetch(getActiveSessionQuery, {
+		userId,
+		lessonId,
+	});
+
+	if (session) {
+		// Update last activity
+		await sanityClient
+			.patch(session._id)
+			.set({ lastActivity: new Date().toISOString() })
+			.commit();
+		return session;
+	}
+
+	// Get user and lesson data for metadata
+	const [user, lesson] = await Promise.all([
+		sanityClient.fetch(getUserLevelQuery, { userId }),
+		sanityClient.fetch(getLessonTitleQuery, { lessonId }),
+	]);
+
+	// Create new session
+	return await sanityClient.create({
+		_type: "chatSession",
+		users: [{ _ref: userId, _type: "reference" }],
+		lessons: [{ _ref: lessonId, _type: "reference" }],
+		sessionId: `${userId}-${lessonId}-${Date.now()}`,
+		createdAt: new Date().toISOString(),
+		lastActivity: new Date().toISOString(),
+		status: "active",
+		metadata: {
+			userLevel: user?.level || "beginner",
+			lessonTitle: lesson?.title || "Unknown Lesson",
+			totalMessages: 0,
+		},
+	});
+};
