@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "inngest/hono";
 import { z } from "zod";
+import type { ChatSession } from "../sanity.types";
 import { functions, inngest } from "./inngest/inggest";
 import { vectorIndex } from "./lib/upstash";
 import {
@@ -20,7 +21,7 @@ const app = new Hono();
 
 export const availableModel = {
 	main: openai("gpt-5-mini"),
-	chat: openai("gpt-5-chat-latest"),
+	chat: openai("gpt-5-mini"),
 };
 
 app.on(
@@ -158,13 +159,16 @@ app.post(
 			console.log("Search results:", searchResults);
 			console.log("System Prompt:", systemPrompt);
 
+			// Create or get session first
+			const session = await getOrCreateChatSession(user._id, lessonId);
+
 			return streamText({
 				model: availableModel.main,
 				system: systemPrompt,
 				messages: convertToModelMessages(messages),
 				onFinish: async (result) => {
 					// Save to Sanity
-					await saveChatMessage(user._id, lessonId, messages, result.text, {
+					await saveChatMessage(session as ChatSession, messages, result.text, {
 						model: result.response.modelId,
 						tokens: result.usage.totalTokens || 0,
 						processingTime: Date.now() - startProcessingTime,

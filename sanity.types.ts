@@ -591,6 +591,15 @@ export type GetExistingRecommendationQueryResult = {
     [internalGroqTypeReferenceTo]?: "course";
   }>;
 } | null;
+// Variable: getChatHistoryQuery
+// Query: *[_type == "chatMessage" && 	  references(*[_type == "chatSession" && 	    references($userId) && 	    references($lessonId) && 	    status == "active"]._id)	] | order(timestamp asc) {	  _id,	  role,	  content,	  timestamp,	  status	}
+export type GetChatHistoryQueryResult = Array<{
+  _id: string;
+  role: "assistant" | "user" | null;
+  content: string | null;
+  timestamp: string | null;
+  status: "completed" | "error" | "streaming" | null;
+}>;
 
 // Query TypeMap
 import "@sanity/client";
@@ -604,5 +613,6 @@ declare module "@sanity/client" {
     "*[_type == \"lesson\" && _id == $lessonId][0]{title}": GetLessonTitleQueryResult;
     "*[_type == \"course\" && _id in $ids]": GetCoursesByIdsQueryResult;
     "*[_type == \"recommendation\" && createdFor._ref == $userId][0]": GetExistingRecommendationQueryResult;
+    "*[_type == \"chatMessage\" && \n\t  references(*[_type == \"chatSession\" && \n\t    references($userId) && \n\t    references($lessonId) && \n\t    status == \"active\"]._id)\n\t] | order(timestamp asc) {\n\t  _id,\n\t  role,\n\t  content,\n\t  timestamp,\n\t  status\n\t}": GetChatHistoryQueryResult;
   }
 }

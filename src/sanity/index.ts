@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 import { defineQuery } from "groq";
+import type { ChatSession } from "../../sanity.types";
 import { sanityClient } from "../lib/sanity";
 
 // Individual query exports for Sanity typegen
@@ -11,31 +12,46 @@ export const getActiveSessionQuery = defineQuery(
 );
 
 export const getUserByIdQuery = defineQuery(
-	`*[_type == "user" && _id == $userId][0]`
+	`*[_type == "user" && _id == $userId][0]`,
 );
 
 export const getUserByClerkIdQuery = defineQuery(
-	`*[_type == "user" && clerkId == $clerkId][0]`
+	`*[_type == "user" && clerkId == $clerkId][0]`,
 );
 
 export const getLessonByIdQuery = defineQuery(
-	`*[_type == "lesson" && _id == $lessonId][0]`
+	`*[_type == "lesson" && _id == $lessonId][0]`,
 );
 
 export const getUserLevelQuery = defineQuery(
-	`*[_type == "user" && _id == $userId][0]{level}`
+	`*[_type == "user" && _id == $userId][0]{level}`,
 );
 
 export const getLessonTitleQuery = defineQuery(
-	`*[_type == "lesson" && _id == $lessonId][0]{title}`
+	`*[_type == "lesson" && _id == $lessonId][0]{title}`,
 );
 
 export const getCoursesByIdsQuery = defineQuery(
-	`*[_type == "course" && _id in $ids]`
+	`*[_type == "course" && _id in $ids]`,
 );
 
 export const getExistingRecommendationQuery = defineQuery(
-	`*[_type == "recommendation" && createdFor._ref == $userId][0]`
+	`*[_type == "recommendation" && createdFor._ref == $userId][0]`,
+);
+
+export const getChatHistoryQuery = defineQuery(
+	`*[_type == "chatMessage" && 
+	  references(*[_type == "chatSession" && 
+	    references($userId) && 
+	    references($lessonId) && 
+	    status == "active"]._id)
+	] | order(timestamp asc) {
+	  _id,
+	  role,
+	  content,
+	  timestamp,
+	  status
+	}`,
 );
 
 export const getCoursesByIds = async (ids: string[]) => {
@@ -65,10 +81,12 @@ export const upsertRecommendation = async (
 			createdFor: {
 				_ref: recommendation.createdFor,
 				_type: "reference",
+				_key: crypto.randomUUID(),
 			},
 			courses: recommendation.courses.map((courseId) => ({
 				_ref: courseId,
 				_type: "reference",
+				_key: crypto.randomUUID(),
 			})),
 		};
 
@@ -127,7 +145,9 @@ const createChatMessage = async (
 ) => {
 	return await sanityClient.create({
 		_type: "chatMessage",
-		sessions: [{ _ref: sessionId, _type: "reference" }],
+		sessions: [
+			{ _ref: sessionId, _type: "reference", _key: crypto.randomUUID() },
+		],
 		role,
 		content,
 		timestamp: new Date().toISOString(),
@@ -137,8 +157,7 @@ const createChatMessage = async (
 };
 
 export async function saveChatMessage(
-	userId: string,
-	lessonId: string,
+	session: ChatSession,
 	messages: UIMessage[],
 	assistantResponse: string,
 	metadata: {
@@ -148,9 +167,6 @@ export async function saveChatMessage(
 	},
 ): Promise<void> {
 	const lastUserMessage = messages[messages.length - 1];
-
-	// Use the existing getOrCreateChatSession function
-	const session = await getOrCreateChatSession(userId, lessonId);
 
 	// Save assistant message
 	await createChatMessage(
@@ -198,8 +214,10 @@ export const getOrCreateChatSession = async (
 	// Create new session
 	return await sanityClient.create({
 		_type: "chatSession",
-		users: [{ _ref: userId, _type: "reference" }],
-		lessons: [{ _ref: lessonId, _type: "reference" }],
+		users: [{ _ref: userId, _type: "reference", _key: crypto.randomUUID() }],
+		lessons: [
+			{ _ref: lessonId, _type: "reference", _key: crypto.randomUUID() },
+		],
 		sessionId: `${userId}-${lessonId}-${Date.now()}`,
 		createdAt: new Date().toISOString(),
 		lastActivity: new Date().toISOString(),
@@ -210,4 +228,27 @@ export const getOrCreateChatSession = async (
 			totalMessages: 0,
 		},
 	});
+};
+
+export const getChatHistory = async (userId: string, lessonId: string) => {
+	try {
+		const messages = await sanityClient.fetch(getChatHistoryQuery, {
+			userId,
+			lessonId,
+		});
+
+		return messages.map((msg) => {
+			const createdAt = msg.timestamp ? new Date(msg.timestamp) : new Date();
+			return {
+				id: msg._id,
+				role: msg.role,
+				content: msg.content,
+				createdAt,
+			};
+		});
+	} catch (error) {
+		throw new Error(
+			`Failed to fetch chat history: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 };
