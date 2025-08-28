@@ -113,18 +113,44 @@ export const upsertRecommendation = async (
 				_type: "reference",
 				_key: crypto.randomUUID(),
 			})),
+			status: recommendation.status || "completed",
+			message: recommendation.message,
 		};
 
 		if (existingRecommendation) {
 			// Update existing recommendation
 			await sanityClient.patch(existingRecommendation._id).set(doc).commit();
+			return existingRecommendation._id;
 		} else {
 			// Create new recommendation
-			await sanityClient.create(doc);
+			const result = await sanityClient.create(doc);
+			return result._id;
 		}
 	} catch (error) {
 		throw new Error(
 			`Failed to save recommendations: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
+};
+
+export const updateRecommendationStatus = async (
+	recommendationId: string,
+	status: "in_progress" | "completed" | "failed",
+	message?: string,
+	additionalFields?: Partial<RecommendationInput>,
+) => {
+	try {
+		const updateFields = {
+			status,
+			...(message && { message }),
+			...additionalFields,
+		};
+
+		await sanityClient.patch(recommendationId).set(updateFields).commit();
+		return recommendationId;
+	} catch (error) {
+		throw new Error(
+			`Failed to update recommendation status: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
 };
@@ -135,6 +161,8 @@ interface RecommendationInput {
 	reason?: string;
 	createdFor: string; // User ID
 	courses: string[]; // Course IDs
+	status?: "in_progress" | "completed" | "failed";
+	message?: string;
 }
 
 export const getUserByClerkId = async (clerkId: string) => {
@@ -195,7 +223,7 @@ export async function saveChatMessage(
 ): Promise<void> {
 	// Convert UIMessage to Sanity format using utility function
 	const sanityDoc = fromUIMessage(message, session._id);
-	
+
 	// Create the message with proper parts structure
 	await createChatMessage(
 		session._id,

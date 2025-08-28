@@ -156,6 +156,8 @@ export type Recommendation = {
     _key: string;
     [internalGroqTypeReferenceTo]?: "course";
   }>;
+  status?: "in_progress" | "completed" | "failed";
+  message?: string;
 };
 
 export type Enrollment = {
@@ -193,6 +195,63 @@ export type Enrollment = {
   percentComplete?: number;
 };
 
+export type QuizAttempt = {
+  _id: string;
+  _type: "quizAttempt";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "user";
+  }>;
+  quiz?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "quiz";
+  }>;
+  course?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "course";
+  }>;
+  chapter?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "chapter";
+  }>;
+  attemptNumber?: number;
+  status?: "in_progress" | "submitted" | "graded";
+  answers?: Array<{
+    questionIndex?: number;
+    selectedOptionIndex?: number;
+    isOutcome?: "correct" | "incorrect";
+    timeTakenMs?: number;
+    _type: "answer";
+    _key: string;
+  }>;
+  correctCount?: number;
+  totalQuestions?: number;
+  score?: number;
+  percentage?: number;
+  startedAt?: string;
+  submittedAt?: string;
+  durationMs?: number;
+  feedback?: string;
+  metadata?: {
+    custom?: string;
+  };
+};
+
 export type Quiz = {
   _id: string;
   _type: "quiz";
@@ -202,6 +261,7 @@ export type Quiz = {
   title?: string;
   slug?: Slug;
   description?: string;
+  maxAttempt?: number;
   questions?: Array<{
     question?: string;
     options?: Array<string>;
@@ -485,7 +545,7 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes = ChatMessage | ChatSession | Recommendation | Enrollment | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
+export type AllSanitySchemaTypes = ChatMessage | ChatSession | Recommendation | Enrollment | QuizAttempt | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: ./src/sanity/index.ts
 // Variable: chatMessageQuery
@@ -755,6 +815,8 @@ export type GetExistingRecommendationQueryResult = {
     _key: string;
     [internalGroqTypeReferenceTo]?: "course";
   }>;
+  status?: "completed" | "failed" | "in_progress";
+  message?: string;
 } | null;
 // Variable: getChatHistoryQuery
 // Query: *[_type == "chatMessage" && 	  references(*[_type == "chatSession" && 	    references($userId) && 	    references($lessonId) && 	    status == "active"]._id)	] | order(timestamp asc) {	  _id,	  role,	  content,	  timestamp,	  status	}
