@@ -140,11 +140,37 @@ export const updateRecommendationStatus = async (
 	additionalFields?: Partial<RecommendationInput>,
 ) => {
 	try {
-		const updateFields = {
+		// Build base update fields
+		const updateFields: Record<string, unknown> = {
 			status,
 			...(message && { message }),
 			...additionalFields,
 		};
+
+		// Normalize courses to reference objects if provided as string IDs
+		if (additionalFields && Array.isArray(additionalFields.courses)) {
+			const arr = additionalFields.courses as (string | SanityReference)[];
+			const refs = arr
+				.map((item) => {
+					if (typeof item === "string") {
+						return {
+							_ref: item,
+							_type: "reference",
+							_key: crypto.randomUUID(),
+						} as SanityReference;
+					}
+					if (item && typeof item === "object" && "_ref" in item) {
+						return {
+							_ref: item._ref,
+							_type: "reference",
+							_key: item._key || crypto.randomUUID(),
+						} as SanityReference;
+					}
+					return null;
+				})
+				.filter((v): v is SanityReference => Boolean(v));
+			updateFields.courses = refs;
+		}
 
 		await sanityClient.patch(recommendationId).set(updateFields).commit();
 		return recommendationId;
@@ -164,6 +190,9 @@ interface RecommendationInput {
 	status?: "in_progress" | "completed" | "failed";
 	message?: string;
 }
+
+// Helper type for Sanity reference objects
+type SanityReference = { _ref: string; _type: "reference"; _key?: string };
 
 export const getUserByClerkId = async (clerkId: string) => {
 	try {
@@ -252,7 +281,7 @@ export const getOrCreateChatSession = async (
 			.commit();
 		return session;
 	}
-
+ 
 	// Get user and lesson data for metadata
 	const [user, lesson] = await Promise.all([
 		sanityClient.fetch(getUserLevelQuery, { userId }),
