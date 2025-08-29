@@ -27,7 +27,7 @@ class Container {
 	private initializeServices(): void {
 		// Infrastructure services
 		const sanityRepository = new SanityRepository(sanityClient);
-		const aiService = new OpenAIService();
+		const aiService = new OpenAIService(sanityRepository);
 		const vectorService = new UpstashVectorService(vectorIndex);
 		const jobService = new InngestJobService(inngest);
 

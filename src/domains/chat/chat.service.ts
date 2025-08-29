@@ -1,102 +1,106 @@
 import type { UIMessage } from "ai";
-import type {
-  ChatMessageParams,
-  ChatResponse,
-  ChatContext,
-  AIService,
-  VectorService,
-  MessageMetadata
-} from "../shared/types";
-import type {
-  UserRepository,
-  LessonRepository,
-  ChatSessionRepository,
-  ChatMessageRepository
-} from "../shared/types";
 import { NotFoundError } from "../shared/errors";
+import type {
+	AIService,
+	ChatContext,
+	ChatMessageParams,
+	ChatMessageRepository,
+	ChatResponse,
+	ChatSessionRepository,
+	LessonRepository,
+	MessageMetadata,
+	UserRepository,
+	VectorService,
+} from "../shared/types";
 
 export class ChatService {
-  constructor(
-    private userRepo: UserRepository,
-    private lessonRepo: LessonRepository,
-    private sessionRepo: ChatSessionRepository,
-    private messageRepo: ChatMessageRepository,
-    private aiService: AIService,
-    private vectorService: VectorService
-  ) {}
+	constructor(
+		private userRepo: UserRepository,
+		private lessonRepo: LessonRepository,
+		private sessionRepo: ChatSessionRepository,
+		private messageRepo: ChatMessageRepository,
+		private aiService: AIService,
+		private vectorService: VectorService,
+	) {}
 
-  async processMessage(params: ChatMessageParams): Promise<Response> {
-    const { user, lessonId, messages } = params;
-    
-    // Get the lesson
-    const lesson = await this.lessonRepo.getLessonById(lessonId);
-    if (!lesson) {
-      throw new NotFoundError("Lesson", lessonId);
-    }
+	async processMessage(params: ChatMessageParams): Promise<Response> {
+		const { user, lessonId, messages } = params;
 
-    // Get or create chat session
-    let session = await this.sessionRepo.getActiveSession(user._id, lessonId);
-    if (!session) {
-      session = await this.sessionRepo.createSession(user._id, lessonId);
-    } else {
-      // Update last activity
-      await this.sessionRepo.updateLastActivity(session._id);
-    }
+		// Get the lesson
+		const lesson = await this.lessonRepo.getLessonById(lessonId);
+		if (!lesson) {
+			throw new NotFoundError("Lesson", lessonId);
+		}
 
-    // Save user message before processing
-    const userMessage = messages[messages.length - 1];
-    if (userMessage && userMessage.role === "user") {
-      await this.messageRepo.saveMessage(session, userMessage);
-    }
+		// Get or create chat session
+		let session = await this.sessionRepo.getActiveSession(user._id, lessonId);
+		if (!session) {
+			session = await this.sessionRepo.createSession(user._id, lessonId);
+		} else {
+			// Update last activity
+			await this.sessionRepo.updateLastActivity(session._id);
+		}
 
-    // Get the last message for context search
-    const lastMessageText = this.extractTextFromMessage(userMessage);
-    if (!lastMessageText) {
-      throw new Error("No message content provided");
-    }
+		// Save user message before processing
+		const userMessage = messages[messages.length - 1];
+		if (userMessage && userMessage.role === "user") {
+			await this.messageRepo.saveMessage(session, userMessage);
+		}
 
-    // Search for relevant context
-    const searchResults = await this.vectorService.searchContext(lastMessageText, lessonId);
+		// Get the last message for context search
+		const lastMessageText = this.extractTextFromMessage(userMessage);
+		if (!lastMessageText) {
+			throw new Error("No message content provided");
+		}
 
-    // Build context for AI
-    const context: ChatContext = {
-      user,
-      lesson,
-      session,
-      searchResults,
-    };
+		// Search for relevant context
+		const searchResults = await this.vectorService.searchContext(
+			lastMessageText,
+			lessonId,
+		);
 
-    // Generate response
-    const response = await this.aiService.generateChatResponse(context, messages);
+		// Build context for AI
+		const context: ChatContext = {
+			user,
+			lesson,
+			session,
+			searchResults,
+		};
 
-    // Note: The AI service will handle saving the assistant's response through its onFinish callback
-    // This is handled in the infrastructure layer to maintain proper separation of concerns
+		// Generate response
+		const response = await this.aiService.generateChatResponse(
+			context,
+			messages,
+		);
 
-    return response;
-  }
+		// Note: The AI service will handle saving the assistant's response through its onFinish callback
+		// This is handled in the infrastructure layer to maintain proper separation of concerns
 
-  async getChatHistory(userId: string, lessonId: string): Promise<UIMessage[]> {
-    return await this.messageRepo.getChatHistory(userId, lessonId);
-  }
+		return response;
+	}
 
-  private extractTextFromMessage(message: UIMessage): string | null {
-    if (!message.parts || message.parts.length === 0) {
-      return null;
-    }
+	async getChatHistory(userId: string, lessonId: string): Promise<UIMessage[]> {
+		return await this.messageRepo.getChatHistory(userId, lessonId);
+	}
 
-    // Find the first text part
-    const textPart = message.parts.find((part) => 
-      part.type === "text" && "text" in part && part.text
-    );
+	private extractTextFromMessage(message: UIMessage): string | null {
+		if (!message.parts || message.parts.length === 0) {
+			return null;
+		}
 
-    return textPart ? (textPart as any).text : null;
-  }
+		// Find the first text part
+		const textPart = message.parts.find(
+			(part) => part.type === "text" && "text" in part && part.text,
+		);
 
-  async saveAssistantResponse(
-    session: any,
-    assistantMessage: UIMessage,
-    metadata?: MessageMetadata
-  ): Promise<void> {
-    await this.messageRepo.saveMessage(session, assistantMessage, metadata);
-  }
+		return textPart ? (textPart as any).text : null;
+	}
+
+	async saveAssistantResponse(
+		session: any,
+		assistantMessage: UIMessage,
+		metadata?: MessageMetadata,
+	): Promise<void> {
+		await this.messageRepo.saveMessage(session, assistantMessage, metadata);
+	}
 }

@@ -4,6 +4,7 @@ import { AIServiceError } from "../../domains/shared/errors";
 import type {
 	AIService,
 	ChatContext,
+	ChatMessageRepository,
 	MessageMetadata,
 } from "../../domains/shared/types";
 import { buildSystemPrompt } from "../../utils/prompt.utils";
@@ -13,6 +14,8 @@ export class OpenAIService implements AIService {
 		main: openai("gpt-5-mini"),
 		chat: openai("gpt-5-chat-latest"),
 	};
+
+	constructor(private messageRepo: ChatMessageRepository) {}
 
 	async generateChatResponse(
 		context: ChatContext,
@@ -32,16 +35,37 @@ export class OpenAIService implements AIService {
 				system: systemPrompt,
 				messages: convertToModelMessages(messages),
 				onFinish: async (result) => {
-					// This callback will be handled by the controller layer
-					// to save the assistant's response
-					const metadata: MessageMetadata = {
-						model: result.response.modelId,
-						tokens: result.usage.totalTokens || 0,
-						processingTime: Date.now() - startProcessingTime,
-					};
+					try {
+						const metadata: MessageMetadata = {
+							model: result.response.modelId,
+							tokens: result.usage.totalTokens || 0,
+							processingTime: Date.now() - startProcessingTime,
+						};
 
-					// We'll pass this metadata back through context
-					(context as any).responseMetadata = metadata;
+						// Create assistant message from the completed response
+						const assistantMessage: UIMessage = {
+							id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+							role: "assistant",
+							parts: [
+								{
+									type: "text",
+									text: result.text,
+									state: "done",
+								},
+							],
+							metadata,
+						};
+
+						// Save the assistant's response
+						await this.messageRepo.saveMessage(
+							context.session,
+							assistantMessage,
+							metadata,
+						);
+					} catch (error) {
+						console.error("Failed to save assistant message:", error);
+						// Don't throw here to avoid breaking the streaming response
+					}
 				},
 			});
 
