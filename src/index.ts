@@ -1,3 +1,4 @@
+import { verifyWebhook } from "@clerk/backend/webhooks";
 import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import type { UIMessage } from "ai";
 import { Hono } from "hono";
@@ -46,6 +47,63 @@ app.on(
 		functions,
 	}),
 );
+
+// Clerk webhook endpoint
+app.post("/api/webhooks/clerk", async (c) => {
+	const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+	if (!webhookSecret) {
+		return c.json({ error: "Webhook secret not configured" }, 500);
+	}
+
+	try {
+		// Get the headers and body for verification
+		const headers = Object.fromEntries(
+			Object.entries(c.req.raw.headers).map(([key, value]) => [
+				key,
+				Array.isArray(value) ? value[0] : value,
+			]),
+		);
+		const body = await c.req.json();
+
+		// Verify the webhook using Clerk's verifyWebhook
+		const event = await verifyWebhook(body, headers);
+
+		// Handle different event types and trigger Inngest functions
+		switch (event.type) {
+			case "user.created":
+				await inngest.send({
+					name: "clerk/user.created",
+					data: event,
+				});
+				console.log("Triggered user.created sync function");
+				break;
+
+			case "user.updated":
+				await inngest.send({
+					name: "clerk/user.updated",
+					data: event,
+				});
+				console.log("Triggered user.updated sync function");
+				break;
+
+			case "user.deleted":
+				await inngest.send({
+					name: "clerk/user.deleted",
+					data: event,
+				});
+				console.log("Triggered user.deleted sync function");
+				break;
+
+			default:
+				console.log(`Unhandled webhook event type: ${event.type}`);
+		}
+
+		return c.json({ received: true });
+	} catch (error) {
+		console.error("Webhook verification failed:", error);
+		return c.json({ error: "Webhook verification failed" }, 400);
+	}
+});
 
 // Recommendations endpoint
 app.post("/api/recommendations", validateRecommendationRequest(), async (c) => {

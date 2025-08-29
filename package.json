@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.15",
+		"@clerk/backend": "^2.10.1",
 		"@hono/clerk-auth": "^3.0.2",
 		"@hono/zod-validator": "^0.7.2",
 		"@sanity/client": "^7.8.1",
