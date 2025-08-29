@@ -56,17 +56,10 @@ app.post("/api/webhooks/clerk", async (c) => {
 	}
 
 	try {
-		// Get the headers and body for verification
-		const headers = Object.fromEntries(
-			Object.entries(c.req.raw.headers).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? value[0] : value,
-			]),
-		);
-		const body = await c.req.json();
-
+		// Get the request body as text for verification
+		const body = c.req.raw;
 		// Verify the webhook using Clerk's verifyWebhook
-		const event = await verifyWebhook(body, headers);
+		const event = await verifyWebhook(body);
 
 		// Handle different event types and trigger Inngest functions
 		switch (event.type) {
