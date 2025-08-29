@@ -50,7 +50,7 @@ app.on(
 
 // Clerk webhook endpoint
 app.post("/api/webhooks/clerk", async (c) => {
-	const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+	const webhookSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
 	if (!webhookSecret) {
 		return c.json({ error: "Webhook secret not configured" }, 500);
 	}
