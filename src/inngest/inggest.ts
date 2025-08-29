@@ -1,5 +1,6 @@
 import { Inngest } from "inngest";
 import { recommendationService } from "../infrastructure/container";
+import { userSyncFunctions } from "./user-sync";
 
 export const inngest = new Inngest({
 	id: "api-genii",
@@ -18,4 +19,4 @@ const recommendationFn = inngest.createFunction(
 	},
 );
 
-export const functions = [recommendationFn];
+export const functions = [recommendationFn, ...userSyncFunctions];

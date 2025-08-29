@@ -185,6 +185,91 @@ export class SanityRepository
 		}
 	}
 
+	// User management methods
+	async createUser(userData: {
+		clerkId: string;
+		email: string;
+		firstname: string;
+		lastname: string;
+		username: string;
+		onboardingStatus: "not_started" | "completed";
+		level: "beginner" | "intermediate" | "advanced";
+	}): Promise<User> {
+		try {
+			const userDoc = {
+				_type: "user",
+				clerkId: userData.clerkId,
+				email: userData.email,
+				firstname: userData.firstname,
+				lastname: userData.lastname,
+				username: userData.username,
+				onboardingStatus: userData.onboardingStatus,
+				level: userData.level,
+				studyStreak: 0,
+				analytics: {
+					totalXP: 0,
+					coursesCompleted: 0,
+					lessonsCompleted: 0,
+					averageSessionTime: 0,
+					streakDays: 0,
+				},
+			};
+
+			return (await this.client.create(userDoc)) as User;
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to create user with Clerk ID: ${userData.clerkId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateUser(userId: string, updates: {
+		email?: string | null;
+		firstname?: string | null;
+		lastname?: string | null;
+		username?: string | null;
+	}): Promise<void> {
+		try {
+			// Filter out null values and only update non-null fields
+			const cleanUpdates: Record<string, string> = {};
+			Object.entries(updates).forEach(([key, value]) => {
+				if (value !== null && value !== undefined) {
+					cleanUpdates[key] = value;
+				}
+			});
+
+			if (Object.keys(cleanUpdates).length > 0) {
+				await this.client.patch(userId).set(cleanUpdates).commit();
+			}
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update user: ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async anonymizeUser(userId: string): Promise<void> {
+		try {
+			await this.client
+				.patch(userId)
+				.set({
+					email: "deleted@example.com",
+					firstname: "Deleted",
+					lastname: "User",
+					username: `deleted_user_${Date.now()}`,
+					clerkId: null,
+				})
+				.commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to anonymize user: ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
 	// Recommendation-specific methods
 	async getCoursesByIds(ids: string[]) {
 		try {
