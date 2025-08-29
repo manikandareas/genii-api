@@ -135,6 +135,85 @@ export type ChatSession = {
   };
 };
 
+export type UserAchievement = {
+  _id: string;
+  _type: "userAchievement";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  achievement?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "achievement";
+  };
+  earned?: boolean;
+  earnedAt?: string;
+  progress?: number;
+  notified?: boolean;
+};
+
+export type Achievement = {
+  _id: string;
+  _type: "achievement";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  id?: string;
+  title?: string;
+  description?: string;
+  icon?: string;
+  category?: "first_steps" | "streak" | "quiz" | "course" | "social";
+  course?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "course";
+  };
+  criteria?: {
+    type?: "lesson_count" | "quiz_score" | "course_completion" | "streak_days" | "custom";
+    target?: number;
+    threshold?: number;
+  };
+  points?: number;
+  isActive?: boolean;
+};
+
+export type LearningSession = {
+  _id: string;
+  _type: "learningSession";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  course?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "course";
+  };
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  activitiesCompleted?: Array<{
+    type?: "lesson" | "quiz" | "reading";
+    contentId?: string;
+    timeSpent?: number;
+    _key: string;
+  }>;
+};
+
 export type Recommendation = {
   _id: string;
   _type: "recommendation";
@@ -390,6 +469,14 @@ export type User = {
   studyStreak?: number;
   streakStartDate?: number;
   delivery_preference?: string;
+  analytics?: {
+    totalXP?: number;
+    currentLevel?: number;
+    totalStudyTimeMinutes?: number;
+    averageSessionTime?: number;
+    strongestSkills?: Array<string>;
+    improvementAreas?: Array<string>;
+  };
 };
 
 export type Color = {
@@ -545,9 +632,9 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes = ChatMessage | ChatSession | Recommendation | Enrollment | QuizAttempt | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
+export type AllSanitySchemaTypes = ChatMessage | ChatSession | UserAchievement | Achievement | LearningSession | Recommendation | Enrollment | QuizAttempt | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
-// Source: ./src/sanity/index.ts
+// Source: ./src/infrastructure/database/sanity.queries.ts
 // Variable: chatMessageQuery
 // Query: *[_type == "chatMessage" && _id == $messageId][0] {  _id,  _rev,  _type,  _createdAt,  _updatedAt,  messageId,  session->{    _id,    _type,    sessionId,    status,    createdAt,    lastActivity,    metadata  },  role,  metadata {    custom  },  parts[]}
 export type ChatMessageQueryResult = {
@@ -648,7 +735,7 @@ export type ChatMessageQueryResult = {
   }> | null;
 } | null;
 // Variable: getActiveSessionQuery
-// Query: *[_type == "chatSession" && 		  references($userId) && 		  references($lessonId) && 		  status == "active"][0]
+// Query: *[_type == "chatSession" &&     references($userId) &&     references($lessonId) &&     status == "active"][0]
 export type GetActiveSessionQueryResult = {
   _id: string;
   _type: "chatSession";
@@ -700,6 +787,14 @@ export type GetUserByIdQueryResult = {
   studyStreak?: number;
   streakStartDate?: number;
   delivery_preference?: string;
+  analytics?: {
+    totalXP?: number;
+    currentLevel?: number;
+    totalStudyTimeMinutes?: number;
+    averageSessionTime?: number;
+    strongestSkills?: Array<string>;
+    improvementAreas?: Array<string>;
+  };
 } | null;
 // Variable: getUserByClerkIdQuery
 // Query: *[_type == "user" && clerkId == $clerkId][0]
@@ -722,6 +817,14 @@ export type GetUserByClerkIdQueryResult = {
   studyStreak?: number;
   streakStartDate?: number;
   delivery_preference?: string;
+  analytics?: {
+    totalXP?: number;
+    currentLevel?: number;
+    totalStudyTimeMinutes?: number;
+    averageSessionTime?: number;
+    strongestSkills?: Array<string>;
+    improvementAreas?: Array<string>;
+  };
 } | null;
 // Variable: getLessonByIdQuery
 // Query: *[_type == "lesson" && _id == $lessonId][0]
@@ -819,7 +922,7 @@ export type GetExistingRecommendationQueryResult = {
   message?: string;
 } | null;
 // Variable: getChatHistoryQuery
-// Query: *[_type == "chatMessage" && 	  references(*[_type == "chatSession" && 	    references($userId) && 	    references($lessonId) && 	    status == "active"]._id)	] | order(timestamp asc) {	  _id,	  role,	  content,	  timestamp,	  status	}
+// Query: *[_type == "chatMessage" &&     references(*[_type == "chatSession" &&       references($userId) &&       references($lessonId) &&       status == "active"]._id)  ] | order(timestamp asc) {    _id,    role,    content,    timestamp,    status  }
 export type GetChatHistoryQueryResult = Array<{
   _id: string;
   role: "assistant" | "system" | "user" | null;
@@ -833,7 +936,7 @@ import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
     "\n*[_type == \"chatMessage\" && _id == $messageId][0] {\n  _id,\n  _rev,\n  _type,\n  _createdAt,\n  _updatedAt,\n  messageId,\n  session->{\n    _id,\n    _type,\n    sessionId,\n    status,\n    createdAt,\n    lastActivity,\n    metadata\n  },\n  role,\n  metadata {\n    custom\n  },\n  parts[]\n}": ChatMessageQueryResult;
-    "*[_type == \"chatSession\" && \n\t\t  references($userId) && \n\t\t  references($lessonId) && \n\t\t  status == \"active\"][0]": GetActiveSessionQueryResult;
+    "*[_type == \"chatSession\" && \n    references($userId) && \n    references($lessonId) && \n    status == \"active\"][0]": GetActiveSessionQueryResult;
     "*[_type == \"user\" && _id == $userId][0]": GetUserByIdQueryResult;
     "*[_type == \"user\" && clerkId == $clerkId][0]": GetUserByClerkIdQueryResult;
     "*[_type == \"lesson\" && _id == $lessonId][0]": GetLessonByIdQueryResult;
@@ -841,6 +944,6 @@ declare module "@sanity/client" {
     "*[_type == \"lesson\" && _id == $lessonId][0]{title}": GetLessonTitleQueryResult;
     "*[_type == \"course\" && _id in $ids]": GetCoursesByIdsQueryResult;
     "*[_type == \"recommendation\" && createdFor._ref == $userId][0]": GetExistingRecommendationQueryResult;
-    "*[_type == \"chatMessage\" && \n\t  references(*[_type == \"chatSession\" && \n\t    references($userId) && \n\t    references($lessonId) && \n\t    status == \"active\"]._id)\n\t] | order(timestamp asc) {\n\t  _id,\n\t  role,\n\t  content,\n\t  timestamp,\n\t  status\n\t}": GetChatHistoryQueryResult;
+    "*[_type == \"chatMessage\" && \n    references(*[_type == \"chatSession\" && \n      references($userId) && \n      references($lessonId) && \n      status == \"active\"]._id)\n  ] | order(timestamp asc) {\n    _id,\n    role,\n    content,\n    timestamp,\n    status\n  }": GetChatHistoryQueryResult;
   }
 }
