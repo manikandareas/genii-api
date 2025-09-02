@@ -1,6 +1,13 @@
 import type { SanityClient } from "@sanity/client";
 import type { UIMessage } from "ai";
-import type { ChatSession, Lesson, User } from "../../../sanity.types";
+import type {
+	ChatSession,
+	Enrollment,
+	LearningSession,
+	Lesson,
+	QuizAttempt,
+	User,
+} from "../../../sanity.types";
 import { RepositoryError } from "../../domains/shared/errors";
 import type {
 	ChatMessageRepository,
@@ -11,12 +18,16 @@ import type {
 } from "../../domains/shared/types";
 import { fromUIMessage } from "../../utils/message.utils";
 import {
+	getActiveLearningSessionQuery,
 	getActiveSessionQuery,
 	getChatHistoryQuery,
+	getLearningSessionByIdQuery,
 	getLessonByIdQuery,
 	getLessonTitleQuery,
+	getQuizAttemptQuery,
 	getUserByClerkIdQuery,
 	getUserByIdQuery,
+	getUserEnrollmentQuery,
 	getUserLevelQuery,
 } from "./sanity.queries";
 
@@ -224,12 +235,15 @@ export class SanityRepository
 		}
 	}
 
-	async updateUser(userId: string, updates: {
-		email?: string | null;
-		firstname?: string | null;
-		lastname?: string | null;
-		username?: string | null;
-	}): Promise<void> {
+	async updateUser(
+		userId: string,
+		updates: {
+			email?: string | null;
+			firstname?: string | null;
+			lastname?: string | null;
+			username?: string | null;
+		},
+	): Promise<void> {
 		try {
 			// Filter out null values and only update non-null fields
 			const cleanUpdates: Record<string, string> = {};
@@ -352,6 +366,179 @@ export class SanityRepository
 		} catch (error) {
 			throw new RepositoryError(
 				`Failed to update recommendation status for ${recommendationId}`,
+				error as Error,
+			);
+		}
+	}
+
+	// Learning session management methods
+	async getActiveLearningSession(userId: string): Promise<LearningSession | null> {
+		try {
+			const session = await this.client.fetch(getActiveLearningSessionQuery, { userId });
+			return session || null;
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to fetch active learning session for user ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async createLearningSession(userId: string, courseId?: string): Promise<LearningSession> {
+		try {
+			const sessionDoc = {
+				_type: "learningSession",
+				user: {
+					_ref: userId,
+					_type: "reference",
+				},
+				...(courseId && {
+					course: {
+						_ref: courseId,
+						_type: "reference",
+					},
+				}),
+				startTime: new Date().toISOString(),
+				activitiesCompleted: [],
+				durationMinutes: 0,
+			};
+
+			return (await this.client.create(sessionDoc)) as LearningSession;
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to create learning session for user ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateLearningSession(
+		sessionId: string, 
+		updates: {
+			endTime?: string;
+			durationMinutes?: number;
+			activitiesCompleted?: Array<{
+				type: "lesson" | "quiz" | "reading";
+				contentId: string;
+				timeSpent: number;
+			}>;
+		}
+	): Promise<void> {
+		try {
+			await this.client.patch(sessionId).set(updates).commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update learning session ${sessionId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async addActivityToSession(
+		sessionId: string,
+		activity: {
+			type: "lesson" | "quiz" | "reading";
+			contentId: string;
+			timeSpent: number;
+		}
+	): Promise<void> {
+		try {
+			await this.client
+				.patch(sessionId)
+				.setIfMissing({ activitiesCompleted: [] })
+				.append("activitiesCompleted", [activity])
+				.commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to add activity to session ${sessionId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateUserAnalytics(
+		userId: string,
+		analytics: {
+			totalXP?: number;
+			currentLevel?: number;
+			totalStudyTimeMinutes?: number;
+			averageSessionTime?: number;
+			strongestSkills?: string[];
+			improvementAreas?: string[];
+		}
+	): Promise<void> {
+		try {
+			const updateFields: Record<string, unknown> = {};
+			Object.entries(analytics).forEach(([key, value]) => {
+				if (value !== undefined) {
+					updateFields[`analytics.${key}`] = value;
+				}
+			});
+
+			await this.client.patch(userId).set(updateFields).commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update user analytics for ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateUserStreak(userId: string, streak: number, startDate?: number): Promise<void> {
+		try {
+			const updates: Record<string, unknown> = { studyStreak: streak };
+			if (startDate !== undefined) {
+				updates.streakStartDate = startDate;
+			}
+
+			await this.client.patch(userId).set(updates).commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update user streak for ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async getUserEnrollment(userId: string, courseId: string): Promise<Enrollment | null> {
+		try {
+			const enrollment = await this.client.fetch(getUserEnrollmentQuery, { userId, courseId });
+			return enrollment || null;
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to fetch enrollment for user ${userId} and course ${courseId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateEnrollmentProgress(
+		enrollmentId: string,
+		contentId: string,
+		percentComplete: number
+	): Promise<void> {
+		try {
+			await this.client
+				.patch(enrollmentId)
+				.setIfMissing({ contentsCompleted: [] })
+				.append("contentsCompleted", [{ _ref: contentId, _type: "reference" }])
+				.set({ percentComplete })
+				.commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update enrollment progress for ${enrollmentId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async getLatestQuizAttempt(userId: string, quizId: string): Promise<QuizAttempt | null> {
+		try {
+			const attempt = await this.client.fetch(getQuizAttemptQuery, { userId, quizId });
+			return attempt || null;
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to fetch quiz attempt for user ${userId} and quiz ${quizId}`,
 				error as Error,
 			);
 		}

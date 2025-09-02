@@ -9,6 +9,7 @@ import type { ApiResponse } from "./domains/shared/types";
 // Import our new services and middleware
 import {
 	chatService,
+	eventService,
 	recommendationService,
 	sanityRepository,
 } from "./infrastructure/container";
@@ -16,6 +17,7 @@ import { functions, inngest } from "./inngest/inggest";
 import { errorHandler } from "./middleware/error.middleware";
 import {
 	validateChatRequest,
+	validateEventRequest,
 	validateRecommendationRequest,
 } from "./middleware/validation.middleware";
 
@@ -125,6 +127,38 @@ app.post("/api/recommendations", validateRecommendationRequest(), async (c) => {
 	};
 
 	return c.json(response, 200);
+});
+
+// Events endpoint for user activity tracking
+app.post("/api/events", validateEventRequest(), async (c) => {
+	const auth = getAuth(c);
+	if (!auth?.userId) {
+		throw new NotFoundError("User");
+	}
+
+	const eventPayload = c.req.valid("json");
+
+	// Get user to verify existence and get internal user ID
+	const user = await sanityRepository.getUserByClerkId(auth.userId);
+	if (!user) {
+		throw new NotFoundError("User", auth.userId);
+	}
+
+	// Process the event
+	const result = await eventService.processEvent(user._id, eventPayload);
+
+	const response: ApiResponse = {
+		success: result.success,
+		data: result.success ? { message: result.message } : null,
+		...(result.success ? {} : { 
+			error: { 
+				code: "EVENT_PROCESSING_FAILED", 
+				message: result.message 
+			}
+		}),
+	};
+
+	return c.json(response, result.success ? 200 : 400);
 });
 
 // Chat endpoint

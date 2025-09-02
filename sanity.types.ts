@@ -367,6 +367,7 @@ export type Lesson = {
     [internalGroqTypeReferenceTo]?: "chapter";
   }>;
   content?: string;
+  videoUrl?: string;
 };
 
 export type Chapter = {
@@ -434,6 +435,13 @@ export type Course = {
     _weak?: boolean;
     _key: string;
     [internalGroqTypeReferenceTo]?: "chapter";
+  }>;
+  learningOutcomes?: Array<string>;
+  resources?: Array<{
+    label?: string;
+    url?: string;
+    _type: "resource";
+    _key: string;
   }>;
 };
 
@@ -844,6 +852,7 @@ export type GetLessonByIdQueryResult = {
     [internalGroqTypeReferenceTo]?: "chapter";
   }>;
   content?: string;
+  videoUrl?: string;
 } | null;
 // Variable: getUserLevelQuery
 // Query: *[_type == "user" && _id == $userId][0]{level}
@@ -894,6 +903,13 @@ export type GetCoursesByIdsQueryResult = Array<{
     _key: string;
     [internalGroqTypeReferenceTo]?: "chapter";
   }>;
+  learningOutcomes?: Array<string>;
+  resources?: Array<{
+    label?: string;
+    url?: string;
+    _type: "resource";
+    _key: string;
+  }>;
 }>;
 // Variable: getExistingRecommendationQuery
 // Query: *[_type == "recommendation" && createdFor._ref == $userId][0]
@@ -930,6 +946,160 @@ export type GetChatHistoryQueryResult = Array<{
   timestamp: null;
   status: null;
 }>;
+// Variable: getActiveLearningSessionQuery
+// Query: *[_type == "learningSession" &&     user._ref == $userId &&     endTime == null][0]
+export type GetActiveLearningSessionQueryResult = {
+  _id: string;
+  _type: "learningSession";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  course?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "course";
+  };
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  activitiesCompleted?: Array<{
+    type?: "lesson" | "quiz" | "reading";
+    contentId?: string;
+    timeSpent?: number;
+    _key: string;
+  }>;
+} | null;
+// Variable: getLearningSessionByIdQuery
+// Query: *[_type == "learningSession" && _id == $sessionId][0]
+export type GetLearningSessionByIdQueryResult = {
+  _id: string;
+  _type: "learningSession";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  course?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "course";
+  };
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
+  activitiesCompleted?: Array<{
+    type?: "lesson" | "quiz" | "reading";
+    contentId?: string;
+    timeSpent?: number;
+    _key: string;
+  }>;
+} | null;
+// Variable: getUserEnrollmentQuery
+// Query: *[_type == "enrollment" &&     userEnrolled[0]._ref == $userId &&     course[0]._ref == $courseId][0]
+export type GetUserEnrollmentQueryResult = {
+  _id: string;
+  _type: "enrollment";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  userEnrolled?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "user";
+  }>;
+  course?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "course";
+  }>;
+  contentsCompleted?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "lesson";
+  } | {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "quiz";
+  }>;
+  dateCompleted?: string;
+  percentComplete?: number;
+} | null;
+// Variable: getQuizAttemptQuery
+// Query: *[_type == "quizAttempt" &&     user[0]._ref == $userId &&     quiz[0]._ref == $quizId] | order(_createdAt desc)[0]
+export type GetQuizAttemptQueryResult = {
+  _id: string;
+  _type: "quizAttempt";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "user";
+  }>;
+  quiz?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "quiz";
+  }>;
+  course?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "course";
+  }>;
+  chapter?: Array<{
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _key: string;
+    [internalGroqTypeReferenceTo]?: "chapter";
+  }>;
+  attemptNumber?: number;
+  status?: "graded" | "in_progress" | "submitted";
+  answers?: Array<{
+    questionIndex?: number;
+    selectedOptionIndex?: number;
+    isOutcome?: "correct" | "incorrect";
+    timeTakenMs?: number;
+    _type: "answer";
+    _key: string;
+  }>;
+  correctCount?: number;
+  totalQuestions?: number;
+  score?: number;
+  percentage?: number;
+  startedAt?: string;
+  submittedAt?: string;
+  durationMs?: number;
+  feedback?: string;
+  metadata?: {
+    custom?: string;
+  };
+} | null;
 
 // Query TypeMap
 import "@sanity/client";
@@ -945,5 +1115,9 @@ declare module "@sanity/client" {
     "*[_type == \"course\" && _id in $ids]": GetCoursesByIdsQueryResult;
     "*[_type == \"recommendation\" && createdFor._ref == $userId][0]": GetExistingRecommendationQueryResult;
     "*[_type == \"chatMessage\" && \n    references(*[_type == \"chatSession\" && \n      references($userId) && \n      references($lessonId) && \n      status == \"active\"]._id)\n  ] | order(timestamp asc) {\n    _id,\n    role,\n    content,\n    timestamp,\n    status\n  }": GetChatHistoryQueryResult;
+    "*[_type == \"learningSession\" && \n    user._ref == $userId && \n    endTime == null][0]": GetActiveLearningSessionQueryResult;
+    "*[_type == \"learningSession\" && _id == $sessionId][0]": GetLearningSessionByIdQueryResult;
+    "*[_type == \"enrollment\" && \n    userEnrolled[0]._ref == $userId && \n    course[0]._ref == $courseId][0]": GetUserEnrollmentQueryResult;
+    "*[_type == \"quizAttempt\" && \n    user[0]._ref == $userId && \n    quiz[0]._ref == $quizId] | order(_createdAt desc)[0]": GetQuizAttemptQueryResult;
   }
 }

@@ -73,3 +73,26 @@ export const getChatHistoryQuery = defineQuery(
     status
   }`,
 );
+
+// Learning session queries
+export const getActiveLearningSessionQuery = defineQuery(
+  `*[_type == "learningSession" && 
+    user._ref == $userId && 
+    endTime == null][0]`,
+);
+
+export const getLearningSessionByIdQuery = defineQuery(
+  `*[_type == "learningSession" && _id == $sessionId][0]`,
+);
+
+export const getUserEnrollmentQuery = defineQuery(
+  `*[_type == "enrollment" && 
+    userEnrolled[0]._ref == $userId && 
+    course[0]._ref == $courseId][0]`,
+);
+
+export const getQuizAttemptQuery = defineQuery(
+  `*[_type == "quizAttempt" && 
+    user[0]._ref == $userId && 
+    quiz[0]._ref == $quizId] | order(_createdAt desc)[0]`,
+);

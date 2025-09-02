@@ -1,5 +1,5 @@
 import { Inngest } from "inngest";
-import { recommendationService } from "../infrastructure/container";
+import { analyticsService, recommendationService } from "../infrastructure/container";
 import { userSyncFunctions } from "./user-sync";
 
 export const inngest = new Inngest({
@@ -19,4 +19,24 @@ const recommendationFn = inngest.createFunction(
 	},
 );
 
-export const functions = [recommendationFn, ...userSyncFunctions];
+const analyticsProcessingFn = inngest.createFunction(
+	{ id: "analytics-processing" },
+	{ event: "analytics/process.triggered" },
+	async ({ event, step }) => {
+		const { userId, activityType, timeSpent, metadata } = event.data;
+
+		// Process analytics updates in background
+		await step.run("update-user-analytics", async () => {
+			await analyticsService.updateUserAnalytics(userId, {
+				activityType,
+				timeSpent,
+				metadata,
+			});
+		});
+
+		// Additional analytics processing can be added here
+		// e.g., skill analysis, achievement checks, etc.
+	},
+);
+
+export const functions = [recommendationFn, analyticsProcessingFn, ...userSyncFunctions];
