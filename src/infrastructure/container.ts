@@ -2,7 +2,7 @@ import { ChatService } from "../domains/chat/chat.service";
 import { RecommendationService } from "../domains/recommendations/recommendation.service";
 import { inngest } from "../inngest/inggest";
 import { sanityClient } from "../lib/sanity";
-import { vectorIndex } from "../lib/upstash";
+import { resourceStoreIndex, vectorIndex } from "../lib/upstash";
 import { AnalyticsService } from "../services/analytics.service";
 import { EventService } from "../services/event.service";
 import { OpenAIService } from "./ai/ai.service";
@@ -29,8 +29,11 @@ class Container {
 	private initializeServices(): void {
 		// Infrastructure services
 		const sanityRepository = new SanityRepository(sanityClient);
-		const aiService = new OpenAIService(sanityRepository);
-		const vectorService = new UpstashVectorService(vectorIndex);
+		const vectorService = new UpstashVectorService(
+			vectorIndex,
+			resourceStoreIndex,
+		);
+		const aiService = new OpenAIService(sanityRepository, vectorService);
 		const jobService = new InngestJobService(inngest);
 
 		// Domain services
@@ -86,5 +89,6 @@ export const chatService = container.get<ChatService>("chatService");
 export const recommendationService = container.get<RecommendationService>(
 	"recommendationService",
 );
-export const analyticsService = container.get<AnalyticsService>("analyticsService");
+export const analyticsService =
+	container.get<AnalyticsService>("analyticsService");
 export const eventService = container.get<EventService>("eventService");

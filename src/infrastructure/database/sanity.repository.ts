@@ -372,9 +372,13 @@ export class SanityRepository
 	}
 
 	// Learning session management methods
-	async getActiveLearningSession(userId: string): Promise<LearningSession | null> {
+	async getActiveLearningSession(
+		userId: string,
+	): Promise<LearningSession | null> {
 		try {
-			const session = await this.client.fetch(getActiveLearningSessionQuery, { userId });
+			const session = await this.client.fetch(getActiveLearningSessionQuery, {
+				userId,
+			});
 			return session || null;
 		} catch (error) {
 			throw new RepositoryError(
@@ -384,9 +388,13 @@ export class SanityRepository
 		}
 	}
 
-	async createLearningSession(userId: string, courseId?: string): Promise<LearningSession> {
+	async createLearningSession(
+		userId: string,
+		courseId?: string,
+	): Promise<LearningSession> {
 		try {
 			const sessionDoc = {
+				_key: crypto.randomUUID(),
 				_type: "learningSession",
 				user: {
 					_ref: userId,
@@ -413,7 +421,7 @@ export class SanityRepository
 	}
 
 	async updateLearningSession(
-		sessionId: string, 
+		sessionId: string,
 		updates: {
 			endTime?: string;
 			durationMinutes?: number;
@@ -422,7 +430,7 @@ export class SanityRepository
 				contentId: string;
 				timeSpent: number;
 			}>;
-		}
+		},
 	): Promise<void> {
 		try {
 			await this.client.patch(sessionId).set(updates).commit();
@@ -440,7 +448,7 @@ export class SanityRepository
 			type: "lesson" | "quiz" | "reading";
 			contentId: string;
 			timeSpent: number;
-		}
+		},
 	): Promise<void> {
 		try {
 			await this.client
@@ -465,7 +473,7 @@ export class SanityRepository
 			averageSessionTime?: number;
 			strongestSkills?: string[];
 			improvementAreas?: string[];
-		}
+		},
 	): Promise<void> {
 		try {
 			const updateFields: Record<string, unknown> = {};
@@ -484,7 +492,11 @@ export class SanityRepository
 		}
 	}
 
-	async updateUserStreak(userId: string, streak: number, startDate?: number): Promise<void> {
+	async updateUserStreak(
+		userId: string,
+		streak: number,
+		startDate?: number,
+	): Promise<void> {
 		try {
 			const updates: Record<string, unknown> = { studyStreak: streak };
 			if (startDate !== undefined) {
@@ -500,9 +512,15 @@ export class SanityRepository
 		}
 	}
 
-	async getUserEnrollment(userId: string, courseId: string): Promise<Enrollment | null> {
+	async getUserEnrollment(
+		userId: string,
+		courseId: string,
+	): Promise<Enrollment | null> {
 		try {
-			const enrollment = await this.client.fetch(getUserEnrollmentQuery, { userId, courseId });
+			const enrollment = await this.client.fetch(getUserEnrollmentQuery, {
+				userId,
+				courseId,
+			});
 			return enrollment || null;
 		} catch (error) {
 			throw new RepositoryError(
@@ -515,7 +533,7 @@ export class SanityRepository
 	async updateEnrollmentProgress(
 		enrollmentId: string,
 		contentId: string,
-		percentComplete: number
+		percentComplete: number,
 	): Promise<void> {
 		try {
 			await this.client
@@ -532,9 +550,15 @@ export class SanityRepository
 		}
 	}
 
-	async getLatestQuizAttempt(userId: string, quizId: string): Promise<QuizAttempt | null> {
+	async getLatestQuizAttempt(
+		userId: string,
+		quizId: string,
+	): Promise<QuizAttempt | null> {
 		try {
-			const attempt = await this.client.fetch(getQuizAttemptQuery, { userId, quizId });
+			const attempt = await this.client.fetch(getQuizAttemptQuery, {
+				userId,
+				quizId,
+			});
 			return attempt || null;
 		} catch (error) {
 			throw new RepositoryError(

@@ -23,6 +23,15 @@ export function buildSystemPrompt(
           Relevant Context:
           ${contextContent}
 
+          TOOLS AVAILABLE:
+          - searchResources: Use this tool when you need to find additional course resources, learning materials, or references related to the user's question. This searches through embedded course content and external resources.
+
+          When to use searchResources:
+          - User asks for examples or additional explanations
+          - User needs supplementary learning materials
+          - User asks about specific topics that might benefit from external resources
+          - You need more detailed information about a concept
+
           Jelaskan dengan gaya ${user.delivery_preference} sesuai level ${user.level}.`;
 }
 

@@ -9,6 +9,13 @@ export type VectorMetadata = {
   chunkIndex: number;
 };
 
+export type ResourceMetadata = {
+  url: string;
+  chunkIndex: number;
+};
+
+export type ResourceSearchResult = QueryResult<ResourceMetadata>;
+
 export type VectorSearchResult = QueryResult<VectorMetadata>;
 
 // Chat domain types
@@ -71,6 +78,7 @@ export interface AIService {
 export interface VectorService {
   searchContext(query: string, lessonId: string, topK?: number): Promise<VectorSearchResult[]>;
   searchCourseRecommendations(query: string, topK?: number): Promise<VectorSearchResult[]>;
+  searchResources(query: string, topK?: number): Promise<ResourceSearchResult[]>;
 }
 
 // Metadata types

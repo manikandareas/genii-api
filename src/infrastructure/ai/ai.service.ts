@@ -6,8 +6,10 @@ import type {
 	ChatContext,
 	ChatMessageRepository,
 	MessageMetadata,
+	VectorService,
 } from "../../domains/shared/types";
 import { buildSystemPrompt } from "../../utils/prompt.utils";
+import { createSearchResourcesTool } from "./tools";
 
 export class OpenAIService implements AIService {
 	private readonly models = {
@@ -15,7 +17,10 @@ export class OpenAIService implements AIService {
 		chat: openai("gpt-5-chat-latest"),
 	};
 
-	constructor(private messageRepo: ChatMessageRepository) {}
+	constructor(
+		private messageRepo: ChatMessageRepository,
+		private vectorService: VectorService,
+	) {}
 
 	async generateChatResponse(
 		context: ChatContext,
@@ -30,10 +35,15 @@ export class OpenAIService implements AIService {
 
 			const startProcessingTime = Date.now();
 
+			const searchResourcesTool = createSearchResourcesTool(this.vectorService);
+
 			const result = streamText({
 				model: this.models.chat,
 				system: systemPrompt,
 				messages: convertToModelMessages(messages),
+				tools: {
+					searchResources: searchResourcesTool,
+				},
 				onFinish: async (result) => {
 					try {
 						const metadata: MessageMetadata = {
