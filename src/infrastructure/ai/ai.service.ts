@@ -14,7 +14,7 @@ import { createSearchResourcesTool } from "./tools";
 export class OpenAIService implements AIService {
 	private readonly models = {
 		main: openai("gpt-5-mini"),
-		chat: openai("gpt-5-mini"),
+		chat: openai("gpt-4.1"),
 	};
 
 	constructor(
