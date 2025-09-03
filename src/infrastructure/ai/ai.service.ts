@@ -13,8 +13,8 @@ import { createSearchResourcesTool } from "./tools";
 
 export class OpenAIService implements AIService {
 	private readonly models = {
-		main: openai("gpt-5-mini"),
-		chat: openai("gpt-4.1"),
+		main: openai(process.env.AI_MAIN_MODEL || "gpt-5-mini"),
+		chat: openai(process.env.AI_CHAT_MODEL || "gpt-4.1"),
 	};
 
 	constructor(
