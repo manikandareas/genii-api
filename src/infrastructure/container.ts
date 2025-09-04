@@ -4,6 +4,7 @@ import { inngest } from "../inngest/inggest";
 import { sanityClient } from "../lib/sanity";
 import { resourceStoreIndex, vectorIndex } from "../lib/upstash";
 import { AnalyticsService } from "../services/analytics.service";
+import { EmailService } from "../services/email.service";
 import { EventService } from "../services/event.service";
 import { OpenAIService } from "./ai/ai.service";
 import { UpstashVectorService } from "./ai/vector.service";
@@ -55,6 +56,12 @@ class Container {
 		// Analytics and event services
 		const analyticsService = new AnalyticsService(sanityRepository);
 		const eventService = new EventService(sanityRepository, analyticsService);
+		
+		// Email service
+		const emailService = new EmailService(
+			sanityRepository,
+			process.env.RESEND_API_KEY || "",
+		);
 
 		// Register services
 		this.services.set("sanityRepository", sanityRepository);
@@ -65,6 +72,7 @@ class Container {
 		this.services.set("recommendationService", recommendationService);
 		this.services.set("analyticsService", analyticsService);
 		this.services.set("eventService", eventService);
+		this.services.set("emailService", emailService);
 	}
 
 	public get<T>(serviceName: string): T {
@@ -92,3 +100,4 @@ export const recommendationService = container.get<RecommendationService>(
 export const analyticsService =
 	container.get<AnalyticsService>("analyticsService");
 export const eventService = container.get<EventService>("eventService");
+export const emailService = container.get<EmailService>("emailService");

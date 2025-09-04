@@ -13,6 +13,29 @@
  */
 
 // Source: schema.json
+export type EmailNotification = {
+  _id: string;
+  _type: "emailNotification";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+  type?: "welcome" | "achievement" | "courseCompletion" | "weeklyDigest";
+  subject?: string;
+  content?: string;
+  sentAt?: string;
+  deliveryStatus?: "sent" | "delivered" | "opened" | "failed";
+  resendId?: string;
+  metadata?: {
+    data?: string;
+  };
+};
+
 export type ChatMessage = {
   _id: string;
   _type: "chatMessage";
@@ -443,6 +466,7 @@ export type Course = {
     _type: "resource";
     _key: string;
   }>;
+  resourcesDigest?: string;
 };
 
 export type Topic = {
@@ -484,6 +508,19 @@ export type User = {
     averageSessionTime?: number;
     strongestSkills?: Array<string>;
     improvementAreas?: Array<string>;
+  };
+  emailPreferences?: {
+    welcomeEmail?: boolean;
+    achievementEmails?: boolean;
+    courseCompletionEmails?: boolean;
+    weeklyDigest?: boolean;
+    unsubscribedAt?: string;
+  };
+  lastEmailSent?: string;
+  emailStats?: {
+    totalSent?: number;
+    totalOpened?: number;
+    lastOpenedAt?: string;
   };
 };
 
@@ -640,7 +677,7 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes = ChatMessage | ChatSession | UserAchievement | Achievement | LearningSession | Recommendation | Enrollment | QuizAttempt | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
+export type AllSanitySchemaTypes = EmailNotification | ChatMessage | ChatSession | UserAchievement | Achievement | LearningSession | Recommendation | Enrollment | QuizAttempt | Quiz | Lesson | Chapter | Course | Topic | User | Color | RgbaColor | HsvaColor | HslaColor | Markdown | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;
 // Source: ./src/infrastructure/database/sanity.queries.ts
 // Variable: chatMessageQuery
@@ -803,6 +840,19 @@ export type GetUserByIdQueryResult = {
     strongestSkills?: Array<string>;
     improvementAreas?: Array<string>;
   };
+  emailPreferences?: {
+    welcomeEmail?: boolean;
+    achievementEmails?: boolean;
+    courseCompletionEmails?: boolean;
+    weeklyDigest?: boolean;
+    unsubscribedAt?: string;
+  };
+  lastEmailSent?: string;
+  emailStats?: {
+    totalSent?: number;
+    totalOpened?: number;
+    lastOpenedAt?: string;
+  };
 } | null;
 // Variable: getUserByClerkIdQuery
 // Query: *[_type == "user" && clerkId == $clerkId][0]
@@ -832,6 +882,19 @@ export type GetUserByClerkIdQueryResult = {
     averageSessionTime?: number;
     strongestSkills?: Array<string>;
     improvementAreas?: Array<string>;
+  };
+  emailPreferences?: {
+    welcomeEmail?: boolean;
+    achievementEmails?: boolean;
+    courseCompletionEmails?: boolean;
+    weeklyDigest?: boolean;
+    unsubscribedAt?: string;
+  };
+  lastEmailSent?: string;
+  emailStats?: {
+    totalSent?: number;
+    totalOpened?: number;
+    lastOpenedAt?: string;
   };
 } | null;
 // Variable: getLessonByIdQuery
@@ -910,6 +973,7 @@ export type GetCoursesByIdsQueryResult = Array<{
     _type: "resource";
     _key: string;
   }>;
+  resourcesDigest?: string;
 }>;
 // Variable: getExistingRecommendationQuery
 // Query: *[_type == "recommendation" && createdFor._ref == $userId][0]

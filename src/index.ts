@@ -161,6 +161,151 @@ app.post("/api/events", validateEventRequest(), async (c) => {
 	return c.json(response, result.success ? 200 : 400);
 });
 
+// Email preferences endpoints
+app.get("/api/email-preferences", async (c) => {
+	const auth = getAuth(c);
+	if (!auth?.userId) {
+		throw new NotFoundError("User");
+	}
+
+	// Get user to verify existence and get preferences
+	const user = await sanityRepository.getUserByClerkId(auth.userId);
+	if (!user) {
+		throw new NotFoundError("User", auth.userId);
+	}
+
+	const response: ApiResponse = {
+		success: true,
+		data: {
+			preferences: user.emailPreferences || {
+				welcomeEmail: true,
+				achievementEmails: true,
+				courseCompletionEmails: true,
+				weeklyDigest: true,
+			},
+			stats: user.emailStats || {
+				totalSent: 0,
+				totalOpened: 0,
+			}
+		},
+	};
+
+	return c.json(response, 200);
+});
+
+app.patch("/api/email-preferences", async (c) => {
+	const auth = getAuth(c);
+	if (!auth?.userId) {
+		throw new NotFoundError("User");
+	}
+
+	// Get user to verify existence
+	const user = await sanityRepository.getUserByClerkId(auth.userId);
+	if (!user) {
+		throw new NotFoundError("User", auth.userId);
+	}
+
+	const body = await c.req.json();
+	const { preferences } = body;
+
+	// Validate preferences object
+	if (!preferences || typeof preferences !== 'object') {
+		return c.json({ error: "Invalid preferences object" }, 400);
+	}
+
+	// Update user email preferences
+	await sanityRepository.updateUserEmailPreferences(user._id, preferences);
+
+	const response: ApiResponse = {
+		success: true,
+		data: { message: "Email preferences updated successfully" },
+	};
+
+	return c.json(response, 200);
+});
+
+app.post("/api/email-preferences/unsubscribe", async (c) => {
+	const auth = getAuth(c);
+	if (!auth?.userId) {
+		throw new NotFoundError("User");
+	}
+
+	// Get user to verify existence
+	const user = await sanityRepository.getUserByClerkId(auth.userId);
+	if (!user) {
+		throw new NotFoundError("User", auth.userId);
+	}
+
+	// Unsubscribe from all emails
+	await sanityRepository.updateUserEmailPreferences(user._id, {
+		welcomeEmail: false,
+		achievementEmails: false,
+		courseCompletionEmails: false,
+		weeklyDigest: false,
+		unsubscribedAt: new Date().toISOString(),
+	});
+
+	const response: ApiResponse = {
+		success: true,
+		data: { message: "Successfully unsubscribed from all emails" },
+	};
+
+	return c.json(response, 200);
+});
+
+// Email tracking endpoint (for Resend webhooks)
+app.post("/api/webhooks/email", async (c) => {
+	try {
+		const body = await c.req.json();
+		const { type, data } = body;
+
+		// Handle different email events from Resend
+		switch (type) {
+			case "email.delivered":
+			case "email.opened":
+				if (data.tags?.userId) {
+					const status = type === "email.delivered" ? "delivered" : "opened";
+					
+					// Update email notification status if we have the notification ID
+					if (data.tags?.notificationId) {
+						await sanityRepository.updateEmailNotificationStatus(
+							data.tags.notificationId,
+							status as "delivered" | "opened"
+						);
+					}
+
+					// Update user email stats
+					await sanityRepository.updateUserEmailStats(data.tags.userId, {
+						...(status === "opened" && {
+							incrementOpened: true,
+							lastOpenedAt: new Date().toISOString(),
+						}),
+					});
+				}
+				break;
+
+			case "email.bounced":
+			case "email.complained":
+				// Handle bounces and complaints by updating notification status
+				if (data.tags?.notificationId) {
+					await sanityRepository.updateEmailNotificationStatus(
+						data.tags.notificationId,
+						"failed"
+					);
+				}
+				break;
+
+			default:
+				console.log(`Unhandled email webhook event type: ${type}`);
+		}
+
+		return c.json({ received: true });
+	} catch (error) {
+		console.error("Email webhook processing failed:", error);
+		return c.json({ error: "Webhook processing failed" }, 400);
+	}
+});
+
 // Chat endpoint
 app.post("/api/chat", validateChatRequest(), async (c) => {
 	const auth = getAuth(c);

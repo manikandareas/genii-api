@@ -1,5 +1,5 @@
 import { Inngest } from "inngest";
-import { sanityRepository } from "../infrastructure/container";
+import { sanityRepository, emailService } from "../infrastructure/container";
 
 // Create the Inngest instance locally to avoid circular dependency
 const inngest = new Inngest({
@@ -42,7 +42,7 @@ export const syncUserCreated = inngest.createFunction(
 		}
 
 		// Create new user in Sanity
-		await sanityRepository.createUser({
+		const newUser = await sanityRepository.createUser({
 			clerkId: clerkUser.id,
 			email: clerkUser.email_addresses[0]?.email_address || "",
 			firstname: clerkUser.first_name || "",
@@ -51,6 +51,16 @@ export const syncUserCreated = inngest.createFunction(
 			onboardingStatus: "not_started",
 			level: "beginner",
 		});
+
+		// Send welcome email in the background
+		try {
+			if (newUser._id) {
+				await emailService.sendWelcomeEmail(newUser._id);
+			}
+		} catch (error) {
+			console.error("Failed to send welcome email:", error);
+			// Don't fail the user creation if email fails
+		}
 
 		return { success: true, message: "User created successfully" };
 	},

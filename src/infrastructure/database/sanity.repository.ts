@@ -2,6 +2,7 @@ import type { SanityClient } from "@sanity/client";
 import type { UIMessage } from "ai";
 import type {
 	ChatSession,
+	EmailNotification,
 	Enrollment,
 	LearningSession,
 	Lesson,
@@ -563,6 +564,179 @@ export class SanityRepository
 		} catch (error) {
 			throw new RepositoryError(
 				`Failed to fetch quiz attempt for user ${userId} and quiz ${quizId}`,
+				error as Error,
+			);
+		}
+	}
+
+	// Email-related methods
+	async createEmailNotification(emailData: {
+		user: { _ref: string; _type: "reference" };
+		type: "welcome" | "achievement" | "courseCompletion" | "weeklyDigest";
+		subject: string;
+		content: string;
+		sentAt: string;
+		deliveryStatus: "sent" | "delivered" | "opened" | "failed";
+		resendId?: string;
+		metadata?: { data?: string };
+	}): Promise<void> {
+		try {
+			const doc = {
+				_type: "emailNotification",
+				...emailData,
+			};
+
+			await this.client.create(doc);
+		} catch (error) {
+			throw new RepositoryError(
+				"Failed to create email notification",
+				error as Error,
+			);
+		}
+	}
+
+	async updateEmailNotificationStatus(
+		notificationId: string,
+		status: "sent" | "delivered" | "opened" | "failed",
+	): Promise<void> {
+		try {
+			await this.client.patch(notificationId).set({ deliveryStatus: status }).commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update email notification status ${notificationId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateUserEmailStats(
+		userId: string,
+		updates: {
+			lastEmailSent?: string;
+			incrementSent?: boolean;
+			incrementOpened?: boolean;
+			lastOpenedAt?: string;
+		},
+	): Promise<void> {
+		try {
+			const patches = [];
+			
+			if (updates.lastEmailSent) {
+				patches.push(this.client.patch(userId).set({ lastEmailSent: updates.lastEmailSent }));
+			}
+
+			if (updates.incrementSent) {
+				patches.push(
+					this.client.patch(userId)
+						.setIfMissing({ "emailStats.totalSent": 0 })
+						.inc({ "emailStats.totalSent": 1 })
+				);
+			}
+
+			if (updates.incrementOpened) {
+				patches.push(
+					this.client.patch(userId)
+						.setIfMissing({ "emailStats.totalOpened": 0 })
+						.inc({ "emailStats.totalOpened": 1 })
+				);
+			}
+
+			if (updates.lastOpenedAt) {
+				patches.push(
+					this.client.patch(userId).set({ "emailStats.lastOpenedAt": updates.lastOpenedAt })
+				);
+			}
+
+			await Promise.all(patches.map(patch => patch.commit()));
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update email stats for user ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async updateUserEmailPreferences(
+		userId: string,
+		preferences: {
+			welcomeEmail?: boolean;
+			achievementEmails?: boolean;
+			courseCompletionEmails?: boolean;
+			weeklyDigest?: boolean;
+			unsubscribedAt?: string;
+		},
+	): Promise<void> {
+		try {
+			const updateFields: Record<string, unknown> = {};
+			Object.entries(preferences).forEach(([key, value]) => {
+				if (value !== undefined) {
+					updateFields[`emailPreferences.${key}`] = value;
+				}
+			});
+
+			await this.client.patch(userId).set(updateFields).commit();
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to update email preferences for user ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async getWeeklyUserActivity(userId: string, weekStart: Date): Promise<{
+		lessonsCompleted: number;
+		timeSpent: number;
+		xpGained: number;
+	}> {
+		try {
+			const weekStartISO = weekStart.toISOString();
+			const weekEndISO = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+			// Query learning sessions within the week
+			const sessions = await this.client.fetch(
+				`*[_type == "learningSession" && 
+				  user._ref == $userId && 
+				  startTime >= $weekStart && 
+				  startTime < $weekEnd]`,
+				{ userId, weekStart: weekStartISO, weekEnd: weekEndISO }
+			);
+
+			let lessonsCompleted = 0;
+			let timeSpent = 0;
+
+			sessions.forEach((session: LearningSession) => {
+				if (session.activitiesCompleted) {
+					session.activitiesCompleted.forEach(activity => {
+						if (activity.type === "lesson") {
+							lessonsCompleted++;
+						}
+						timeSpent += activity.timeSpent || 0;
+					});
+				}
+			});
+
+			// Estimate XP based on lessons completed and time spent
+			// This is a rough calculation - you might want to implement more precise tracking
+			const xpGained = lessonsCompleted * 50 + Math.floor(timeSpent / 10) * 5;
+
+			return { lessonsCompleted, timeSpent, xpGained };
+		} catch (error) {
+			throw new RepositoryError(
+				`Failed to get weekly activity for user ${userId}`,
+				error as Error,
+			);
+		}
+	}
+
+	async getUsersForWeeklyDigest(): Promise<User[]> {
+		try {
+			const users = await this.client.fetch(
+				`*[_type == "user" && emailPreferences.weeklyDigest != false && email != ""]`
+			);
+			return users || [];
+		} catch (error) {
+			throw new RepositoryError(
+				"Failed to fetch users for weekly digest",
 				error as Error,
 			);
 		}
