@@ -1,5 +1,5 @@
 import { Inngest } from "inngest";
-import { sanityRepository, emailService } from "../infrastructure/container";
+import { emailService, sanityRepository } from "../infrastructure/container";
 
 // Create the Inngest instance locally to avoid circular dependency
 const inngest = new Inngest({
@@ -33,7 +33,7 @@ export const syncUserCreated = inngest.createFunction(
 	async ({ event }) => {
 		const clerkEvent = event.data as ClerkWebhookEvent;
 		const clerkUser = clerkEvent.data;
-		
+
 		// Check if user already exists to prevent duplicates
 		const existingUser = await sanityRepository.getUserByClerkId(clerkUser.id);
 		if (existingUser) {
@@ -77,7 +77,9 @@ export const syncUserUpdated = inngest.createFunction(
 		// Find existing user
 		const existingUser = await sanityRepository.getUserByClerkId(clerkUser.id);
 		if (!existingUser) {
-			console.log(`User with Clerk ID ${clerkUser.id} not found, creating new user`);
+			console.log(
+				`User with Clerk ID ${clerkUser.id} not found, creating new user`,
+			);
 			// Create user if doesn't exist (edge case)
 			await sanityRepository.createUser({
 				clerkId: clerkUser.id,

@@ -1,7 +1,7 @@
-import { Resend } from "resend";
-import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import type { User, EmailNotification } from "../../sanity.types";
+import { generateText } from "ai";
+import { Resend } from "resend";
+import type { User } from "../../sanity.types";
 import type { SanityRepository } from "../infrastructure/database/sanity.repository";
 
 export interface EmailContext {
@@ -31,12 +31,15 @@ export interface EmailContext {
 
 export class EmailService {
 	private resend: Resend;
+	private fromDomain: string;
 
 	constructor(
 		private sanityRepository: SanityRepository,
 		resendApiKey: string,
+		fromDomain: string = "geniius.space",
 	) {
 		this.resend = new Resend(resendApiKey);
+		this.fromDomain = fromDomain;
 	}
 
 	async generateAIContent(
@@ -55,15 +58,15 @@ export class EmailService {
 		});
 
 		const content = result.text;
-		
+
 		// Extract subject line (assumes AI generates content with "Subject: ..." at the start)
 		const subjectMatch = content.match(/Subject:\s*(.+)/i);
-		const subject = subjectMatch 
-			? subjectMatch[1].trim() 
+		const subject = subjectMatch
+			? subjectMatch[1].trim()
 			: this.getDefaultSubject(emailType, context);
 
 		// Remove subject line from content if it was included
-		const emailContent = content.replace(/Subject:\s*.+\n\n?/i, '').trim();
+		const emailContent = content.replace(/Subject:\s*.+\n\n?/i, "").trim();
 
 		return { subject, content: emailContent };
 	}
@@ -124,7 +127,7 @@ You're creating a weekly progress digest email. Focus on:
 
 	private getUserPrompt(emailType: string, context: EmailContext): string {
 		const { user, analytics, achievement, courseDetails } = context;
-		
+
 		const userName = user.firstname || user.username || "there";
 		const userLevel = user.level || "beginner";
 
@@ -161,7 +164,8 @@ You're creating a weekly progress digest email. Focus on:
 
 			case "weeklyDigest":
 				if (analytics?.weeklyProgress) {
-					const { lessonsCompleted, timeSpent, xpGained } = analytics.weeklyProgress;
+					const { lessonsCompleted, timeSpent, xpGained } =
+						analytics.weeklyProgress;
 					prompt += ` This week they completed ${lessonsCompleted} lessons, spent ${timeSpent} minutes learning, and gained ${xpGained} XP.`;
 				}
 				if (analytics) {
@@ -175,7 +179,7 @@ You're creating a weekly progress digest email. Focus on:
 
 	private getDefaultSubject(emailType: string, context: EmailContext): string {
 		const userName = context.user.firstname || context.user.username || "there";
-		
+
 		switch (emailType) {
 			case "welcome":
 				return `Welcome to Genii, ${userName}! Your learning journey starts here 🚀`;
@@ -198,11 +202,14 @@ You're creating a weekly progress digest email. Focus on:
 		if (user.emailPreferences?.welcomeEmail === false) return false;
 
 		const context: EmailContext = { user };
-		const { subject, content } = await this.generateAIContent("welcome", context);
+		const { subject, content } = await this.generateAIContent(
+			"welcome",
+			context,
+		);
 
 		try {
 			const { data } = await this.resend.emails.send({
-				from: "Genii <noreply@genii.dev>",
+				from: `Genii <noreply@${this.fromDomain}>`,
 				to: [user.email],
 				subject,
 				html: this.wrapInEmailTemplate(content, user),
@@ -213,8 +220,14 @@ You're creating a weekly progress digest email. Focus on:
 			});
 
 			// Track the email
-			await this.trackEmailSent(user._id, "welcome", subject, content, data?.id);
-			
+			await this.trackEmailSent(
+				user._id,
+				"welcome",
+				subject,
+				content,
+				data?.id,
+			);
+
 			return true;
 		} catch (error) {
 			console.error("Failed to send welcome email:", error);
@@ -222,25 +235,37 @@ You're creating a weekly progress digest email. Focus on:
 		}
 	}
 
-	async sendAchievementEmail(userId: string, achievement: { type: "streak" | "level_up" | "milestone"; details: string; value?: number }): Promise<boolean> {
+	async sendAchievementEmail(
+		userId: string,
+		achievement: {
+			type: "streak" | "level_up" | "milestone";
+			details: string;
+			value?: number;
+		},
+	): Promise<boolean> {
 		const user = await this.sanityRepository.getUserById(userId);
 		if (!user || !user.email) return false;
 
 		// Check email preferences
 		if (user.emailPreferences?.achievementEmails === false) return false;
 
-		const analytics = user.analytics ? {
-			totalXP: user.analytics.totalXP || 0,
-			currentLevel: user.analytics.currentLevel || 1,
-			studyStreak: user.studyStreak || 0,
-		} : undefined;
+		const analytics = user.analytics
+			? {
+					totalXP: user.analytics.totalXP || 0,
+					currentLevel: user.analytics.currentLevel || 1,
+					studyStreak: user.studyStreak || 0,
+				}
+			: undefined;
 
 		const context: EmailContext = { user, analytics, achievement };
-		const { subject, content } = await this.generateAIContent("achievement", context);
+		const { subject, content } = await this.generateAIContent(
+			"achievement",
+			context,
+		);
 
 		try {
 			const { data } = await this.resend.emails.send({
-				from: "Genii <noreply@genii.dev>",
+				from: `Genii <noreply@${this.fromDomain}>`,
 				to: [user.email],
 				subject,
 				html: this.wrapInEmailTemplate(content, user),
@@ -251,8 +276,14 @@ You're creating a weekly progress digest email. Focus on:
 				],
 			});
 
-			await this.trackEmailSent(user._id, "achievement", subject, content, data?.id);
-			
+			await this.trackEmailSent(
+				user._id,
+				"achievement",
+				subject,
+				content,
+				data?.id,
+			);
+
 			return true;
 		} catch (error) {
 			console.error("Failed to send achievement email:", error);
@@ -260,25 +291,37 @@ You're creating a weekly progress digest email. Focus on:
 		}
 	}
 
-	async sendCourseCompletionEmail(userId: string, courseDetails: { title: string; difficulty: string; completionTime?: number }): Promise<boolean> {
+	async sendCourseCompletionEmail(
+		userId: string,
+		courseDetails: {
+			title: string;
+			difficulty: string;
+			completionTime?: number;
+		},
+	): Promise<boolean> {
 		const user = await this.sanityRepository.getUserById(userId);
 		if (!user || !user.email) return false;
 
 		// Check email preferences
 		if (user.emailPreferences?.courseCompletionEmails === false) return false;
 
-		const analytics = user.analytics ? {
-			totalXP: user.analytics.totalXP || 0,
-			currentLevel: user.analytics.currentLevel || 1,
-			studyStreak: user.studyStreak || 0,
-		} : undefined;
+		const analytics = user.analytics
+			? {
+					totalXP: user.analytics.totalXP || 0,
+					currentLevel: user.analytics.currentLevel || 1,
+					studyStreak: user.studyStreak || 0,
+				}
+			: undefined;
 
 		const context: EmailContext = { user, analytics, courseDetails };
-		const { subject, content } = await this.generateAIContent("courseCompletion", context);
+		const { subject, content } = await this.generateAIContent(
+			"courseCompletion",
+			context,
+		);
 
 		try {
 			const { data } = await this.resend.emails.send({
-				from: "Genii <noreply@genii.dev>",
+				from: `Genii <noreply@${this.fromDomain}>`,
 				to: [user.email],
 				subject,
 				html: this.wrapInEmailTemplate(content, user),
@@ -289,8 +332,14 @@ You're creating a weekly progress digest email. Focus on:
 				],
 			});
 
-			await this.trackEmailSent(user._id, "courseCompletion", subject, content, data?.id);
-			
+			await this.trackEmailSent(
+				user._id,
+				"courseCompletion",
+				subject,
+				content,
+				data?.id,
+			);
+
 			return true;
 		} catch (error) {
 			console.error("Failed to send course completion email:", error);
@@ -298,7 +347,14 @@ You're creating a weekly progress digest email. Focus on:
 		}
 	}
 
-	async sendWeeklyDigest(userId: string, weeklyProgress: { lessonsCompleted: number; timeSpent: number; xpGained: number }): Promise<boolean> {
+	async sendWeeklyDigest(
+		userId: string,
+		weeklyProgress: {
+			lessonsCompleted: number;
+			timeSpent: number;
+			xpGained: number;
+		},
+	): Promise<boolean> {
 		const user = await this.sanityRepository.getUserById(userId);
 		if (!user || !user.email) return false;
 
@@ -306,33 +362,48 @@ You're creating a weekly progress digest email. Focus on:
 		if (user.emailPreferences?.weeklyDigest === false) return false;
 
 		// Don't send if user hasn't been active
-		if (weeklyProgress.lessonsCompleted === 0 && weeklyProgress.timeSpent === 0) return false;
+		if (weeklyProgress.lessonsCompleted === 0 && weeklyProgress.timeSpent === 0)
+			return false;
 
-		const analytics = user.analytics ? {
-			totalXP: user.analytics.totalXP || 0,
-			currentLevel: user.analytics.currentLevel || 1,
-			studyStreak: user.studyStreak || 0,
-			weeklyProgress,
-		} : { totalXP: 0, currentLevel: 1, studyStreak: 0, weeklyProgress };
+		const analytics = user.analytics
+			? {
+					totalXP: user.analytics.totalXP || 0,
+					currentLevel: user.analytics.currentLevel || 1,
+					studyStreak: user.studyStreak || 0,
+					weeklyProgress,
+				}
+			: { totalXP: 0, currentLevel: 1, studyStreak: 0, weeklyProgress };
 
 		const context: EmailContext = { user, analytics };
-		const { subject, content } = await this.generateAIContent("weeklyDigest", context);
+		const { subject, content } = await this.generateAIContent(
+			"weeklyDigest",
+			context,
+		);
 
 		try {
 			const { data } = await this.resend.emails.send({
-				from: "Genii <noreply@genii.dev>",
+				from: `Genii <noreply@${this.fromDomain}>`,
 				to: [user.email],
 				subject,
 				html: this.wrapInEmailTemplate(content, user),
 				tags: [
 					{ name: "type", value: "weeklyDigest" },
 					{ name: "userId", value: user._id },
-					{ name: "lessonsCompleted", value: weeklyProgress.lessonsCompleted.toString() },
+					{
+						name: "lessonsCompleted",
+						value: weeklyProgress.lessonsCompleted.toString(),
+					},
 				],
 			});
 
-			await this.trackEmailSent(user._id, "weeklyDigest", subject, content, data?.id);
-			
+			await this.trackEmailSent(
+				user._id,
+				"weeklyDigest",
+				subject,
+				content,
+				data?.id,
+			);
+
 			return true;
 		} catch (error) {
 			console.error("Failed to send weekly digest:", error);
@@ -342,7 +413,7 @@ You're creating a weekly progress digest email. Focus on:
 
 	private wrapInEmailTemplate(content: string, user: User): string {
 		const userName = user.firstname || user.username || "there";
-		
+
 		return `
 <!DOCTYPE html>
 <html lang="en">
@@ -423,7 +494,7 @@ You're creating a weekly progress digest email. Focus on:
         </div>
         
         <div class="content">
-            ${content.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}
+            ${content.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}
         </div>
         
         <div class="footer">
@@ -439,7 +510,13 @@ You're creating a weekly progress digest email. Focus on:
 </html>`;
 	}
 
-	private async trackEmailSent(userId: string, type: "welcome" | "achievement" | "courseCompletion" | "weeklyDigest", subject: string, content: string, resendId?: string): Promise<void> {
+	private async trackEmailSent(
+		userId: string,
+		type: "welcome" | "achievement" | "courseCompletion" | "weeklyDigest",
+		subject: string,
+		content: string,
+		resendId?: string,
+	): Promise<void> {
 		try {
 			// Create email notification record
 			await this.sanityRepository.createEmailNotification({

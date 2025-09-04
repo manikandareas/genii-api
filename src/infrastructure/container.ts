@@ -61,6 +61,7 @@ class Container {
 		const emailService = new EmailService(
 			sanityRepository,
 			process.env.RESEND_API_KEY || "",
+			process.env.EMAIL_FROM_DOMAIN || "geniius.space",
 		);
 
 		// Register services
