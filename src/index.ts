@@ -40,6 +40,17 @@ app.use(
 	}),
 );
 
+// Favicon route
+app.get("/favicon.ico", async (c) => {
+	const file = Bun.file("src/favicon.ico");
+	const arrayBuffer = await file.arrayBuffer();
+	
+	return c.body(arrayBuffer, 200, {
+		"Content-Type": "image/x-icon",
+		"Cache-Control": "public, max-age=31536000", // Cache for 1 year
+	});
+});
+
 // Inngest webhook endpoint
 app.on(
 	["GET", "PUT", "POST"],
@@ -150,12 +161,14 @@ app.post("/api/events", validateEventRequest(), async (c) => {
 	const response: ApiResponse = {
 		success: result.success,
 		data: result.success ? { message: result.message } : null,
-		...(result.success ? {} : { 
-			error: { 
-				code: "EVENT_PROCESSING_FAILED", 
-				message: result.message 
-			}
-		}),
+		...(result.success
+			? {}
+			: {
+					error: {
+						code: "EVENT_PROCESSING_FAILED",
+						message: result.message,
+					},
+				}),
 	};
 
 	return c.json(response, result.success ? 200 : 400);
@@ -186,7 +199,7 @@ app.get("/api/email-preferences", async (c) => {
 			stats: user.emailStats || {
 				totalSent: 0,
 				totalOpened: 0,
-			}
+			},
 		},
 	};
 
@@ -209,7 +222,7 @@ app.patch("/api/email-preferences", async (c) => {
 	const { preferences } = body;
 
 	// Validate preferences object
-	if (!preferences || typeof preferences !== 'object') {
+	if (!preferences || typeof preferences !== "object") {
 		return c.json({ error: "Objek preferensi tidak valid" }, 400);
 	}
 
@@ -265,12 +278,12 @@ app.post("/api/webhooks/email", async (c) => {
 			case "email.opened":
 				if (data.tags?.userId) {
 					const status = type === "email.delivered" ? "delivered" : "opened";
-					
+
 					// Update email notification status if we have the notification ID
 					if (data.tags?.notificationId) {
 						await sanityRepository.updateEmailNotificationStatus(
 							data.tags.notificationId,
-							status as "delivered" | "opened"
+							status as "delivered" | "opened",
 						);
 					}
 
@@ -290,7 +303,7 @@ app.post("/api/webhooks/email", async (c) => {
 				if (data.tags?.notificationId) {
 					await sanityRepository.updateEmailNotificationStatus(
 						data.tags.notificationId,
-						"failed"
+						"failed",
 					);
 				}
 				break;
