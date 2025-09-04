@@ -147,6 +147,15 @@ Kamu sedang membuat email ringkasan kemajuan mingguan. Fokus pada:
 					if (achievement.value) {
 						prompt += ` (${achievement.value})`;
 					}
+					
+					// Add special context for level-up achievements
+					if (achievement.type === "level_up" && achievement.value) {
+						if (achievement.value === 2) {
+							prompt += ` Ini adalah level up pertama mereka! Buat email yang sangat motivational dan welcoming.`;
+						} else if (achievement.value % 5 === 0) {
+							prompt += ` Ini adalah milestone level ${achievement.value}! Rayakan pencapaian besar ini dengan antusias.`;
+						}
+					}
 				}
 				if (analytics) {
 					prompt += ` Statistik saat ini: ${analytics.totalXP} XP, Level ${analytics.currentLevel}, streak ${analytics.studyStreak} hari.`;
@@ -236,6 +245,20 @@ Kamu sedang membuat email ringkasan kemajuan mingguan. Fokus pada:
 			console.error("Failed to send welcome email:", error);
 			return false;
 		}
+	}
+
+	shouldSendLevelUpEmail(oldLevel: number, newLevel: number): boolean {
+		// Send email for first level up (1 -> 2)
+		if (oldLevel === 1 && newLevel === 2) {
+			return true;
+		}
+		
+		// Send email for multiples of 5 (5, 10, 15, 20, etc.)
+		if (newLevel % 5 === 0 && newLevel > oldLevel) {
+			return true;
+		}
+		
+		return false;
 	}
 
 	async sendAchievementEmail(

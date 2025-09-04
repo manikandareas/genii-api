@@ -46,12 +46,26 @@ const analyticsProcessingFn = inngest.createFunction(
 
 			// Check for level up
 			if (userAfter.analytics?.currentLevel && userBefore.analytics?.currentLevel) {
-				if (userAfter.analytics.currentLevel > userBefore.analytics.currentLevel) {
-					await emailService.sendAchievementEmail(userId, {
-						type: "level_up",
-						details: `Congratulations! You've reached Level ${userAfter.analytics.currentLevel}`,
-						value: userAfter.analytics.currentLevel,
-					});
+				const oldLevel = userBefore.analytics.currentLevel;
+				const newLevel = userAfter.analytics.currentLevel;
+				
+				if (newLevel > oldLevel) {
+					// Only send email for first level up (1->2) or multiples of 5
+					if (emailService.shouldSendLevelUpEmail(oldLevel, newLevel)) {
+						let congratsMessage = `Congratulations! You've reached Level ${newLevel}`;
+						
+						if (newLevel === 2) {
+							congratsMessage = `🎉 Welcome to Level 2! Your learning journey has officially begun`;
+						} else if (newLevel % 5 === 0) {
+							congratsMessage = `🏆 Amazing milestone! You've reached Level ${newLevel}`;
+						}
+						
+						await emailService.sendAchievementEmail(userId, {
+							type: "level_up",
+							details: congratsMessage,
+							value: newLevel,
+						});
+					}
 				}
 			}
 

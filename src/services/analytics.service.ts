@@ -9,15 +9,55 @@ export class AnalyticsService {
 		metadata?: any,
 	): Promise<number> {
 		switch (activityType) {
-			case "lesson":
-				return 50; // Base XP for lesson completion
-			case "quiz": {
-				// XP based on quiz performance
-				const percentage = metadata?.percentage || 0;
-				return Math.floor((percentage / 100) * 100); // 0-100 XP based on score
+			case "lesson": {
+				let xp = 100; // Base XP for lesson completion
+				
+				// Time bonus: +10 XP per 10 minutes studied
+				const timeSpentMinutes = metadata?.timeSpentMinutes || 0;
+				const timeBonus = Math.floor(timeSpentMinutes / 10) * 10;
+				xp += timeBonus;
+				
+				// Completion bonus
+				if (metadata?.completed) {
+					xp += 25;
+				}
+				
+				return xp;
 			}
-			case "reading":
-				return 25; // Base XP for reading completion
+			case "quiz": {
+				const percentage = metadata?.percentage || 0;
+				const attempts = metadata?.attempts || 1;
+				
+				// Performance-based XP: 50-150 based on score
+				let xp = Math.floor(50 + (percentage / 100) * 100);
+				
+				// Perfect score bonus
+				if (percentage === 100) {
+					xp += 25;
+				}
+				
+				// Attempt penalty: -10 XP for retakes (minimum 50 XP)
+				if (attempts > 1) {
+					xp = Math.max(50, xp - ((attempts - 1) * 10));
+				}
+				
+				return xp;
+			}
+			case "reading": {
+				let xp = 75; // Base XP for reading completion
+				
+				// Time bonus: +5 XP per 5 minutes reading
+				const timeSpentMinutes = metadata?.timeSpentMinutes || 0;
+				const timeBonus = Math.floor(timeSpentMinutes / 5) * 5;
+				xp += timeBonus;
+				
+				// Comprehension bonus if followed by quiz/lesson
+				if (metadata?.hasFollowUp) {
+					xp += 15;
+				}
+				
+				return xp;
+			}
 			default:
 				return 0;
 		}
@@ -113,10 +153,25 @@ export class AnalyticsService {
 	}
 
 	private calculateLevel(totalXP: number): number {
-		// Level formula: each level requires 100 more XP than previous
-		// Level 1: 0-99 XP, Level 2: 100-299 XP, Level 3: 300-599 XP, etc.
-		if (totalXP < 100) return 1;
-		return Math.floor(Math.sqrt(totalXP / 100)) + 1;
+		// Tiered progression system:
+		// Levels 1-5: 200 XP per level (beginner friendly)
+		// Levels 6-15: 300 XP per level (intermediate)
+		// Levels 16+: 400 XP per level (advanced)
+		
+		if (totalXP < 200) return 1;
+		
+		// Levels 2-5 (200-1000 XP)
+		if (totalXP < 1000) {
+			return Math.floor(totalXP / 200) + 1;
+		}
+		
+		// Levels 6-15 (1000-3700 XP)
+		if (totalXP < 3700) {
+			return Math.floor((totalXP - 1000) / 300) + 6;
+		}
+		
+		// Levels 16+ (3700+ XP)
+		return Math.floor((totalXP - 3700) / 400) + 16;
 	}
 
 	async updateEnrollmentIfNeeded(
