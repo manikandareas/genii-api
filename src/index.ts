@@ -54,7 +54,7 @@ app.on(
 app.post("/api/webhooks/clerk", async (c) => {
 	const webhookSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
 	if (!webhookSecret) {
-		return c.json({ error: "Webhook secret not configured" }, 500);
+		return c.json({ error: "Webhook secret tidak dikonfigurasi" }, 500);
 	}
 
 	try {
@@ -96,7 +96,7 @@ app.post("/api/webhooks/clerk", async (c) => {
 		return c.json({ received: true });
 	} catch (error) {
 		console.error("Webhook verification failed:", error);
-		return c.json({ error: "Webhook verification failed" }, 400);
+		return c.json({ error: "Verifikasi webhook gagal" }, 400);
 	}
 });
 
@@ -210,7 +210,7 @@ app.patch("/api/email-preferences", async (c) => {
 
 	// Validate preferences object
 	if (!preferences || typeof preferences !== 'object') {
-		return c.json({ error: "Invalid preferences object" }, 400);
+		return c.json({ error: "Objek preferensi tidak valid" }, 400);
 	}
 
 	// Update user email preferences
@@ -218,7 +218,7 @@ app.patch("/api/email-preferences", async (c) => {
 
 	const response: ApiResponse = {
 		success: true,
-		data: { message: "Email preferences updated successfully" },
+		data: { message: "Preferensi email berhasil diperbarui" },
 	};
 
 	return c.json(response, 200);
@@ -247,7 +247,7 @@ app.post("/api/email-preferences/unsubscribe", async (c) => {
 
 	const response: ApiResponse = {
 		success: true,
-		data: { message: "Successfully unsubscribed from all emails" },
+		data: { message: "Berhasil berhenti berlangganan dari semua email" },
 	};
 
 	return c.json(response, 200);
@@ -302,7 +302,7 @@ app.post("/api/webhooks/email", async (c) => {
 		return c.json({ received: true });
 	} catch (error) {
 		console.error("Email webhook processing failed:", error);
-		return c.json({ error: "Webhook processing failed" }, 400);
+		return c.json({ error: "Pemrosesan webhook gagal" }, 400);
 	}
 });
 

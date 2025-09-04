@@ -38,7 +38,7 @@ export const syncUserCreated = inngest.createFunction(
 		const existingUser = await sanityRepository.getUserByClerkId(clerkUser.id);
 		if (existingUser) {
 			console.log(`User with Clerk ID ${clerkUser.id} already exists`);
-			return { success: true, message: "User already exists" };
+			return { success: true, message: "Pengguna sudah ada" };
 		}
 
 		// Create new user in Sanity
@@ -62,7 +62,7 @@ export const syncUserCreated = inngest.createFunction(
 			// Don't fail the user creation if email fails
 		}
 
-		return { success: true, message: "User created successfully" };
+		return { success: true, message: "Pengguna berhasil dibuat" };
 	},
 );
 
@@ -90,7 +90,7 @@ export const syncUserUpdated = inngest.createFunction(
 				onboardingStatus: "not_started",
 				level: "beginner",
 			});
-			return { success: true, message: "User created from update event" };
+			return { success: true, message: "Pengguna dibuat dari event update" };
 		}
 
 		// Update user in Sanity
@@ -101,7 +101,7 @@ export const syncUserUpdated = inngest.createFunction(
 			username: clerkUser.username,
 		});
 
-		return { success: true, message: "User updated successfully" };
+		return { success: true, message: "Pengguna berhasil diperbarui" };
 	},
 );
 
@@ -117,14 +117,14 @@ export const syncUserDeleted = inngest.createFunction(
 		const existingUser = await sanityRepository.getUserByClerkId(clerkUser.id);
 		if (!existingUser) {
 			console.log(`User with Clerk ID ${clerkUser.id} not found for deletion`);
-			return { success: true, message: "User not found, nothing to delete" };
+			return { success: true, message: "Pengguna tidak ditemukan, tidak ada yang dihapus" };
 		}
 
 		// Soft delete or anonymize user data instead of hard delete
 		// This preserves chat history and other user-generated content
 		await sanityRepository.anonymizeUser(existingUser._id);
 
-		return { success: true, message: "User anonymized successfully" };
+		return { success: true, message: "Pengguna berhasil dianonimkan" };
 	},
 );
 

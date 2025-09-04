@@ -45,7 +45,7 @@ export class EventService {
 			console.error("Event processing failed:", error);
 			return {
 				success: false,
-				message: error instanceof Error ? error.message : "Unknown error occurred"
+				message: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui"
 			};
 		}
 	}
@@ -74,7 +74,7 @@ export class EventService {
 
 		return {
 			success: true,
-			message: "Learning session started successfully"
+			message: "Sesi belajar berhasil dimulai"
 		};
 	}
 
@@ -131,7 +131,7 @@ export class EventService {
 
 		return {
 			success: true,
-			message: "Lesson completion recorded successfully"
+			message: "Penyelesaian pelajaran berhasil dicatat"
 		};
 	}
 
@@ -204,7 +204,7 @@ export class EventService {
 
 		return {
 			success: true,
-			message: "Quiz completion recorded successfully"
+			message: "Penyelesaian kuis berhasil dicatat"
 		};
 	}
 
@@ -218,7 +218,7 @@ export class EventService {
 		if (!activeSession) {
 			return {
 				success: true,
-				message: "No active session to end"
+				message: "Tidak ada sesi aktif untuk diakhiri"
 			};
 		}
 
@@ -235,7 +235,7 @@ export class EventService {
 
 		return {
 			success: true,
-			message: "Learning session ended successfully"
+			message: "Sesi belajar berhasil diakhiri"
 		};
 	}
 }

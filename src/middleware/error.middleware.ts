@@ -27,7 +27,7 @@ export const errorHandler = (): MiddlewareHandler => {
 				success: false,
 				error: {
 					code: "INTERNAL_ERROR",
-					message: "An unexpected error occurred",
+					message: "Terjadi kesalahan yang tidak terduga",
 				},
 			};
 

@@ -5,16 +5,16 @@ import type { VectorService } from "../../domains/shared/types";
 export const createSearchResourcesTool = (vectorService: VectorService) => {
 	return tool({
 		description:
-			"Search for relevant course resources and learning materials based on a query. Use this when the user asks about specific topics, concepts, or needs additional learning resources.",
+			"Mencari sumber belajar dan materi kursus yang relevan berdasarkan pertanyaan. Gunakan ini ketika pengguna bertanya tentang topik tertentu, konsep, atau membutuhkan sumber belajar tambahan.",
 		inputSchema: z.object({
 			query: z
 				.string()
-				.describe("The search query to find relevant course resources"),
+				.describe("Kata kunci pencarian untuk menemukan sumber belajar yang relevan"),
 			topK: z
 				.number()
 				.optional()
 				.default(5)
-				.describe("Number of results to return (default: 5)"),
+				.describe("Jumlah hasil yang dikembalikan (default: 5)"),
 		}),
 		execute: async ({ query, topK = 5 }) => {
 			try {
@@ -37,7 +37,7 @@ export const createSearchResourcesTool = (vectorService: VectorService) => {
 			} catch (error) {
 				return {
 					query,
-					error: "Failed to search resources",
+					error: "Gagal mencari sumber belajar",
 					totalResults: 0,
 					resources: [],
 				};

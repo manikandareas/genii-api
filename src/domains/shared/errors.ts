@@ -11,13 +11,13 @@ export abstract class DomainError extends Error {
 }
 
 export class AuthenticationError extends DomainError {
-  constructor(message = 'Authentication required') {
+  constructor(message = 'Autentikasi diperlukan') {
     super(message, 'AUTH_REQUIRED', 401);
   }
 }
 
 export class AuthorizationError extends DomainError {
-  constructor(message = 'Access denied') {
+  constructor(message = 'Akses ditolak') {
     super(message, 'ACCESS_DENIED', 403);
   }
 }
@@ -30,7 +30,7 @@ export class ValidationError extends DomainError {
 
 export class NotFoundError extends DomainError {
   constructor(resource: string, id?: string) {
-    const message = id ? `${resource} with ID ${id} not found` : `${resource} not found`;
+    const message = id ? `${resource} dengan ID ${id} tidak ditemukan` : `${resource} tidak ditemukan`;
     super(message, 'NOT_FOUND', 404);
   }
 }

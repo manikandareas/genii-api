@@ -32,6 +32,9 @@ export interface EmailContext {
 export class EmailService {
 	private resend: Resend;
 	private fromDomain: string;
+	private readonly emailModel = openai(
+		process.env.AI_EMAIL_MODEL || "o4-mini-2025-04-16",
+	);
 
 	constructor(
 		private sanityRepository: SanityRepository,
@@ -52,7 +55,7 @@ export class EmailService {
 		const userPrompt = this.getUserPrompt(emailType, context);
 
 		const result = await generateText({
-			model: openai("gpt-4o-mini"),
+			model: this.emailModel,
 			system: systemPrompt,
 			prompt: userPrompt,
 		});
@@ -72,53 +75,53 @@ export class EmailService {
 	}
 
 	private getSystemPrompt(emailType: string): string {
-		const basePrompt = `You are an AI assistant that creates engaging, personalized email content for an educational platform called Genii. 
+		const basePrompt = `Kamu adalah asisten AI yang membuat konten email yang menarik dan personal untuk platform edukasi bernama Genii. 
 
-Your emails should be:
-- Warm, encouraging, and motivational
-- Professional but friendly in tone
-- Focused on the user's learning journey
-- Include actionable next steps when appropriate
-- Keep content concise and scannable
+Email yang kamu buat harus:
+- Hangat, memberi semangat, dan motivasi
+- Profesional namun ramah
+- Fokus pada perjalanan belajar pengguna
+- Menyertakan langkah selanjutnya yang bisa dilakukan jika diperlukan
+- Konten yang ringkas dan mudah dibaca
 
-Always start your response with "Subject: [email subject line]" followed by the email content.`;
+Selalu mulai responmu dengan "Subject: [subjek email]" diikuti konten email.`;
 
 		switch (emailType) {
 			case "welcome":
 				return `${basePrompt}
 
-You're creating a welcome email for new users. Focus on:
-- Welcoming them to their learning journey
-- Highlighting the platform's key benefits
-- Encouraging them to start their first lesson
-- Making them feel supported and excited`;
+Kamu sedang membuat email selamat datang untuk pengguna baru. Fokus pada:
+- Menyambut mereka dalam perjalanan belajar
+- Menyoroti manfaat utama platform
+- Mendorong mereka untuk memulai pelajaran pertama
+- Membuat mereka merasa didukung dan bersemangat`;
 
 			case "achievement":
 				return `${basePrompt}
 
-You're creating an achievement celebration email. Focus on:
-- Celebrating their specific accomplishment
-- Recognizing their dedication and progress
-- Encouraging continued learning
-- Making them feel proud of their achievement`;
+Kamu sedang membuat email perayaan pencapaian. Fokus pada:
+- Merayakan pencapaian spesifik mereka
+- Mengakui dedikasi dan kemajuan mereka
+- Mendorong pembelajaran berkelanjutan
+- Membuat mereka merasa bangga dengan pencapaian mereka`;
 
 			case "courseCompletion":
 				return `${basePrompt}
 
-You're creating a course completion celebration email. Focus on:
-- Congratulating them on completing the course
-- Highlighting key skills they've gained
-- Suggesting relevant next steps or courses
-- Maintaining momentum in their learning journey`;
+Kamu sedang membuat email perayaan penyelesaian kursus. Fokus pada:
+- Mengucapkan selamat atas penyelesaian kursus
+- Menyoroti keterampilan kunci yang telah mereka peroleh
+- Menyarankan langkah selanjutnya atau kursus yang relevan
+- Mempertahankan momentum dalam perjalanan belajar mereka`;
 
 			case "weeklyDigest":
 				return `${basePrompt}
 
-You're creating a weekly progress digest email. Focus on:
-- Summarizing their week's learning activities
-- Highlighting key achievements and milestones
-- Providing insights into their learning patterns
-- Encouraging continued progress with specific suggestions`;
+Kamu sedang membuat email ringkasan kemajuan mingguan. Fokus pada:
+- Merangkum aktivitas belajar dalam seminggu
+- Menyoroti pencapaian dan milestone penting
+- Memberikan wawasan tentang pola belajar mereka
+- Mendorong kemajuan berkelanjutan dengan saran spesifik`;
 
 			default:
 				return basePrompt;
@@ -131,34 +134,34 @@ You're creating a weekly progress digest email. Focus on:
 		const userName = user.firstname || user.username || "there";
 		const userLevel = user.level || "beginner";
 
-		let prompt = `Create a ${emailType} email for ${userName} (${userLevel} level).`;
+		let prompt = `Buatkan email ${emailType} untuk ${userName} (level ${userLevel}).`;
 
 		switch (emailType) {
 			case "welcome":
-				prompt += ` This is their first interaction with our platform. Their learning goals: ${user.learningGoals?.join(", ") || "general programming skills"}.`;
+				prompt += ` Ini adalah interaksi pertama mereka dengan platform kami. Tujuan belajar mereka: ${user.learningGoals?.join(", ") || "keterampilan programming umum"}.`;
 				break;
 
 			case "achievement":
 				if (achievement) {
-					prompt += ` They just achieved: ${achievement.details}`;
+					prompt += ` Mereka baru saja mencapai: ${achievement.details}`;
 					if (achievement.value) {
 						prompt += ` (${achievement.value})`;
 					}
 				}
 				if (analytics) {
-					prompt += ` Current stats: ${analytics.totalXP} XP, Level ${analytics.currentLevel}, ${analytics.studyStreak} day streak.`;
+					prompt += ` Statistik saat ini: ${analytics.totalXP} XP, Level ${analytics.currentLevel}, streak ${analytics.studyStreak} hari.`;
 				}
 				break;
 
 			case "courseCompletion":
 				if (courseDetails) {
-					prompt += ` They just completed the course "${courseDetails.title}" (${courseDetails.difficulty} level)`;
+					prompt += ` Mereka baru saja menyelesaikan kursus "${courseDetails.title}" (level ${courseDetails.difficulty})`;
 					if (courseDetails.completionTime) {
-						prompt += ` in ${courseDetails.completionTime} minutes`;
+						prompt += ` dalam ${courseDetails.completionTime} menit`;
 					}
 				}
 				if (analytics) {
-					prompt += ` Current progress: ${analytics.totalXP} XP, Level ${analytics.currentLevel}.`;
+					prompt += ` Kemajuan saat ini: ${analytics.totalXP} XP, Level ${analytics.currentLevel}.`;
 				}
 				break;
 
@@ -166,10 +169,10 @@ You're creating a weekly progress digest email. Focus on:
 				if (analytics?.weeklyProgress) {
 					const { lessonsCompleted, timeSpent, xpGained } =
 						analytics.weeklyProgress;
-					prompt += ` This week they completed ${lessonsCompleted} lessons, spent ${timeSpent} minutes learning, and gained ${xpGained} XP.`;
+					prompt += ` Minggu ini mereka menyelesaikan ${lessonsCompleted} pelajaran, menghabiskan ${timeSpent} menit belajar, dan mendapatkan ${xpGained} XP.`;
 				}
 				if (analytics) {
-					prompt += ` Overall progress: ${analytics.totalXP} total XP, Level ${analytics.currentLevel}, ${analytics.studyStreak} day streak.`;
+					prompt += ` Kemajuan keseluruhan: ${analytics.totalXP} total XP, Level ${analytics.currentLevel}, streak ${analytics.studyStreak} hari.`;
 				}
 				break;
 		}
@@ -182,15 +185,15 @@ You're creating a weekly progress digest email. Focus on:
 
 		switch (emailType) {
 			case "welcome":
-				return `Welcome to Genii, ${userName}! Your learning journey starts here 🚀`;
+				return `Selamat datang di Genii, ${userName}! Perjalanan belajarmu dimulai dari sini 🚀`;
 			case "achievement":
-				return `Amazing work, ${userName}! You've unlocked a new achievement 🎉`;
+				return `Kerja luar biasa, ${userName}! Kamu telah membuka pencapaian baru 🎉`;
 			case "courseCompletion":
-				return `Congratulations ${userName}! Course completed 🎓`;
+				return `Selamat ${userName}! Kursus telah diselesaikan 🎓`;
 			case "weeklyDigest":
-				return `Your weekly learning recap, ${userName} 📊`;
+				return `Ringkasan belajar mingguan ${userName} 📊`;
 			default:
-				return `Update from Genii`;
+				return `Update dari Genii`;
 		}
 	}
 
