@@ -3158,7 +3158,35 @@
         },
         "optional": true
       },
-      "delivery_preference": {
+      "explanationStyle": {
+        "type": "objectAttribute",
+        "value": {
+          "type": "string"
+        },
+        "optional": true
+      },
+      "languagePreference": {
+        "type": "objectAttribute",
+        "value": {
+          "type": "union",
+          "of": [
+            {
+              "type": "string",
+              "value": "id"
+            },
+            {
+              "type": "string",
+              "value": "en"
+            },
+            {
+              "type": "string",
+              "value": "mix"
+            }
+          ]
+        },
+        "optional": true
+      },
+      "goal": {
         "type": "objectAttribute",
         "value": {
           "type": "string"

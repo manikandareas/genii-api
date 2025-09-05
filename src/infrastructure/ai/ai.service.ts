@@ -79,7 +79,10 @@ export class OpenAIService implements AIService {
 				},
 			});
 
-			return result.toUIMessageStreamResponse();
+			return result.toUIMessageStreamResponse({
+				sendReasoning: true,
+				sendSources: true,
+			});
 		} catch (error) {
 			throw new AIServiceError(
 				"Failed to generate chat response",

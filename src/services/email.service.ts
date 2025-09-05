@@ -51,7 +51,7 @@ export class EmailService {
 	): Promise<{ subject: string; content: string }> {
 		const { user, analytics, achievement, courseDetails } = context;
 
-		const systemPrompt = this.getSystemPrompt(emailType);
+		const systemPrompt = this.getSystemPrompt(emailType, user.languagePreference);
 		const userPrompt = this.getUserPrompt(emailType, context);
 
 		const result = await generateText({
@@ -74,7 +74,9 @@ export class EmailService {
 		return { subject, content: emailContent };
 	}
 
-	private getSystemPrompt(emailType: string): string {
+	private getSystemPrompt(emailType: string, languagePreference?: "id" | "en" | "mix"): string {
+		const languageInstruction = this.getLanguageInstruction(languagePreference);
+		
 		const basePrompt = `Kamu adalah asisten AI yang membuat konten email yang menarik dan personal untuk platform edukasi bernama Genii. 
 
 Email yang kamu buat harus:
@@ -83,6 +85,8 @@ Email yang kamu buat harus:
 - Fokus pada perjalanan belajar pengguna
 - Menyertakan langkah selanjutnya yang bisa dilakukan jika diperlukan
 - Konten yang ringkas dan mudah dibaca
+
+${languageInstruction}
 
 Selalu mulai responmu dengan "Subject: [subjek email]" diikuti konten email.`;
 
@@ -128,6 +132,18 @@ Kamu sedang membuat email ringkasan kemajuan mingguan. Fokus pada:
 		}
 	}
 
+	private getLanguageInstruction(languagePreference?: "id" | "en" | "mix"): string {
+		switch (languagePreference) {
+			case "en":
+				return "IMPORTANT: Write the email ONLY in English. Subject line and all content must be in English.";
+			case "mix":
+				return "IMPORTANT: You may use both Bahasa Indonesia and English. Use English for technical terms when helpful, but primarily write in Bahasa Indonesia.";
+			case "id":
+			default:
+				return "IMPORTANT: Write the email ONLY in Bahasa Indonesia. Subject line and all content must be in Bahasa Indonesia.";
+		}
+	}
+
 	private getUserPrompt(emailType: string, context: EmailContext): string {
 		const { user, analytics, achievement, courseDetails } = context;
 
@@ -139,6 +155,9 @@ Kamu sedang membuat email ringkasan kemajuan mingguan. Fokus pada:
 		switch (emailType) {
 			case "welcome":
 				prompt += ` Ini adalah interaksi pertama mereka dengan platform kami. Tujuan belajar mereka: ${user.learningGoals?.join(", ") || "keterampilan programming umum"}.`;
+				if (user.goal) {
+					prompt += ` Goal pribadi mereka: ${user.goal}.`;
+				}
 				break;
 
 			case "achievement":

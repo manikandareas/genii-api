@@ -500,7 +500,9 @@ export type User = {
   level?: "beginner" | "intermediate" | "advanced";
   studyStreak?: number;
   streakStartDate?: number;
-  delivery_preference?: string;
+  explanationStyle?: string;
+  languagePreference?: "id" | "en" | "mix";
+  goal?: string;
   analytics?: {
     totalXP?: number;
     currentLevel?: number;
@@ -831,7 +833,9 @@ export type GetUserByIdQueryResult = {
   level?: "advanced" | "beginner" | "intermediate";
   studyStreak?: number;
   streakStartDate?: number;
-  delivery_preference?: string;
+  explanationStyle?: string;
+  languagePreference?: "en" | "id" | "mix";
+  goal?: string;
   analytics?: {
     totalXP?: number;
     currentLevel?: number;
@@ -874,7 +878,9 @@ export type GetUserByClerkIdQueryResult = {
   level?: "advanced" | "beginner" | "intermediate";
   studyStreak?: number;
   streakStartDate?: number;
-  delivery_preference?: string;
+  explanationStyle?: string;
+  languagePreference?: "en" | "id" | "mix";
+  goal?: string;
   analytics?: {
     totalXP?: number;
     currentLevel?: number;

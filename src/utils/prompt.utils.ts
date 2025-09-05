@@ -1,6 +1,18 @@
 import type { Lesson, User } from "../../sanity.types";
 import type { VectorSearchResult } from "../domains/shared/types";
 
+function getLanguageInstruction(languagePreference?: "id" | "en" | "mix"): string {
+	switch (languagePreference) {
+		case "en":
+			return "IMPORTANT: Respond ONLY in English. All explanations, examples, and text should be in English.";
+		case "mix":
+			return "IMPORTANT: You may use both Bahasa Indonesia and English as appropriate. Use English for technical terms when helpful, but primarily communicate in Bahasa Indonesia.";
+		case "id":
+		default:
+			return "IMPORTANT: Respond ONLY in Bahasa Indonesia. All explanations, examples, and text should be in Bahasa Indonesia.";
+	}
+}
+
 export function buildSystemPrompt(
 	user: User,
 	lesson: Lesson,
@@ -15,8 +27,10 @@ export function buildSystemPrompt(
 
           User Profile:
           - Difficulty Level: ${user.level}
-          - Delivery Preference: ${user.delivery_preference}
+          - Explanation Style: ${user.explanationStyle}
           - Learning Goals: ${user.learningGoals?.join(", ")}
+          - Language Preference: ${user.languagePreference || "id"}
+          ${user.goal ? `- Personal Goal: ${user.goal}` : ""}
 
           Current Lesson: ${lesson.title}
 
@@ -32,7 +46,9 @@ export function buildSystemPrompt(
           - Pengguna bertanya tentang topik tertentu yang mungkin memerlukan sumber eksternal
           - Kamu memerlukan informasi lebih detail tentang suatu konsep
 
-          Jelaskan dengan gaya ${user.delivery_preference} sesuai level ${user.level}.`;
+          Jelaskan dengan gaya ${user.explanationStyle} sesuai level ${user.level}.
+          
+          ${getLanguageInstruction(user.languagePreference)}`;
 }
 
 export function splitContent(content: string, chunkSize = 500) {
